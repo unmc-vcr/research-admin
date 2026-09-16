@@ -1,0 +1,74 @@
+id: https://nebraska.edu/research_administration
+name: research_administration
+title: Research Administration
+prefixes:
+  linkml: https://w3id.org/linkml/
+  schema: http://schema.org/
+  ra: https://nebraska.edu/research_administration
+default_prefix: ra
+default_range: string
+imports:
+  - linkml:types
+slots:
+  funded_item:
+    range: Project
+    required: true
+    slot_uri: schema:fundedItem
+  funder:
+    range: Organization
+    required: true
+    slot_uri: schema:funder
+  id:
+    range: uriorcurie
+    required: true
+    identifier: true
+  name:
+    range: string
+    required: true
+    slot_uri: schema:name
+  project_type:
+    range: ProjectType
+    required: true
+enums:
+  ProjectType:
+    permissible_values:
+      instruction: null
+      research: null
+      public_service: null
+      academic_support: null
+      student_services: null
+classes:
+  CreativeWork:
+    is_a: Thing
+    class_uri: schema:CreativeWork
+  Award:
+    is_a: MonetaryGrant
+    abstract: true
+    slots:
+      - funded_item
+      - funder
+  MonetaryGrant:
+    is_a: Grant
+    class_uri: schema:MonetaryGrant
+  GrantAward:
+    is_a: Award
+  Project:
+    is_a: CreativeWork
+    slots:
+      - project_type
+  Organization:
+    is_a: Thing
+    class_uri: schema:Organization
+  ExternalOrganization:
+    is_a: Organization
+  InternalOrganization:
+    is_a: Organization
+  Thing:
+    abstract: true
+    class_uri: schema:Thing
+    slots:
+      - id
+      - name
+  Grant:
+    is_a: Thing
+    class_uri: schema:Grant
