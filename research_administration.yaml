@@ -10,6 +10,7 @@ default_prefix: ra
 default_range: string
 imports:
   - linkml:types
+  - nacubo_functional_classification
 settings:
   ror_prefix: https://ror\\.org/
   ror_suffix: 0[0-9a-hjkmnp-tv-z]{6}[0-9]{2}
@@ -38,9 +39,6 @@ slots:
     range: string
     required: true
     slot_uri: schema:name
-  project_type:
-    range: ProjectType
-    required: true
   funding_periods: {}
   award_type:
     range: AwardType
@@ -54,13 +52,6 @@ slots:
   end_date:
     range: date
 enums:
-  ProjectType:
-    permissible_values:
-      instruction: null
-      research: null
-      public_service: null
-      academic_support: null
-      student_services: null
   AwardType:
     permissible_values:
       grant: null
@@ -82,14 +73,15 @@ classes:
   Project:
     is_a: CreativeWork
     slots:
-      - project_type
       - funding
       - start_date
       - end_date
     attributes:
       lead_person:
-        required: true
         range: Person
+        required: true
+      project_classification:
+        range: FunctionalExpenseCategory
   Organization:
     is_a: Thing
     class_uri: schema:Organization
