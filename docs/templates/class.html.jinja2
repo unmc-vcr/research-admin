@@ -1,0 +1,237 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- set has_diagram = diagram_type not in ('er_diagram', 'plantuml_class_diagram') -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+
+{%- if element.title %}{% set title = element.title %}{% else %}{% set title = element.name if gen.use_class_uris else gen.name(element) %}{% endif %}
+
+{%- block page_title %}{{ title|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Classes</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ title|e }}</span>{% endblock -%}
+
+{%- block content %}
+{%- set direct_slots = gen.get_direct_slots(element) %}
+{%- set indirect_slots = gen.get_indirect_slots(element) %}
+
+<header class="page-header">
+  <p class="eyebrow">Class</p>
+  <h1>{{ title|e }}{% if element.title %} <span class="page-header__alt">{{ element.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">
+    {%- if element.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif -%}
+    {%- if element.abstract %}{{ m.badge('abstract', 'abstract') }}{% endif -%}
+    {%- if element.mixin %}{{ m.badge('mixin', 'mixin') }}{% endif -%}
+    {%- if element.tree_root %}{{ m.badge('tree root', 'root') }}{% endif -%}
+  </p>
+  {{ m.paragraphs(element.description, 'lede') }}
+</header>
+
+{%- if element.deprecated %}
+<p class="callout callout--warn"><strong>Deprecated.</strong> {{ element.deprecated|e }}</p>
+{%- endif %}
+{%- if element.abstract %}
+<p class="callout"><strong>Abstract class.</strong> It should not be instantiated directly; use one of its descendants.</p>
+{%- endif %}
+
+<dl class="factbar">
+  <div><dt>URI</dt><dd>{{ m.uri_link(element) }}</dd></div>
+  {%- if element.class_uri %}<div><dt>Class URI</dt><dd>{{ m.uri_link(element.class_uri) }}</dd></div>{% endif %}
+  <div><dt>Slots</dt><dd>{{ direct_slots|length + indirect_slots|length }}</dd></div>
+</dl>
+
+{% include "_class_diagram.html.jinja2" %}
+
+<section class="section" id="inheritance">
+  <h2>Inheritance</h2>
+  {{ m.hierarchy(element, 'class') }}
+  {%- if element.mixins %}
+  <p class="muted">Mixins: {{ m.link_list(element.mixins) }}</p>
+  {%- endif %}
+</section>
+
+{%- set has_class_props = element.subclass_of or element.union_of or element.disjoint_with
+    or element.slot_names_unique or element.represents_relationship or element.children_are_mutually_disjoint %}
+{%- if has_class_props %}
+<section class="section" id="properties">
+  <h2>Class properties</h2>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.subclass_of %}{{ m.row('Subclass of', m.link(element.subclass_of)) }}{% endif %}
+        {%- if element.union_of %}{{ m.row('Union of', m.link_list(element.union_of)) }}{% endif %}
+        {%- if element.disjoint_with %}{{ m.row('Disjoint with', m.link_list(element.disjoint_with)) }}{% endif %}
+        {{ m.yes_row('Slot names unique', element.slot_names_unique) }}
+        {{ m.yes_row('Represents relationship', element.represents_relationship) }}
+        {{ m.yes_row('Children are mutually disjoint', element.children_are_mutually_disjoint) }}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+<section class="section" id="slots">
+  <h2>Slots</h2>
+  {%- if direct_slots or indirect_slots %}
+  <div class="table-wrap">
+    <table class="table table--slots">
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">Cardinality</th><th scope="col">Range</th><th scope="col">Description</th><th scope="col">Inherited from</th></tr>
+      </thead>
+      <tbody>
+        {%- for slot in direct_slots %}
+        <tr>
+          <td>{{ m.link(slot) }}{% if slot.identifier %} {{ m.badge('identifier', 'id') }}{% elif slot.key %} {{ m.badge('key', 'id') }}{% endif %}</td>
+          <td>{{ m.cardinality(slot) }}</td>
+          <td>{{ m.slot_range(slot) }}</td>
+          <td>{{ m.summary(slot.description) }}</td>
+          <td><span class="muted">direct</span></td>
+        </tr>
+        {%- endfor %}
+        {%- for slot in indirect_slots %}
+        <tr class="is-inherited">
+          <td>{{ m.link(slot) }}{% if slot.identifier %} {{ m.badge('identifier', 'id') }}{% elif slot.key %} {{ m.badge('key', 'id') }}{% endif %}</td>
+          <td>{{ m.cardinality(slot) }}</td>
+          <td>{{ m.slot_range(slot) }}</td>
+          <td>{{ m.summary(slot.description) }}</td>
+          <td>{{ m.link_list(gen.get_slot_inherited_from(element.name, slot.name)) }}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- else %}
+  <p class="muted">This class defines no slots.</p>
+  {%- endif %}
+</section>
+
+{%- if element.unique_keys %}
+<section class="section" id="unique-keys">
+  <h2>Unique keys</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Slots</th><th scope="col">Nulls</th></tr></thead>
+      <tbody>
+        {%- for uk in element.unique_keys.values() %}
+        <tr>
+          <td><code>{{ uk.unique_key_name|e }}</code></td>
+          <td>{{ m.link_list(uk.unique_key_slots) }}</td>
+          <td>{% if uk.consider_nulls_inequal %}treated as unequal{% else %}<span class="muted">default</span>{% endif %}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if element.defining_slots %}
+<section class="section" id="defining-slots">
+  <h2>Defining slots</h2>
+  <p>Membership of this class is determined by:</p>
+  <ul class="notelist">{% for s in element.defining_slots %}<li>{{ m.link(s) }}</li>{% endfor %}</ul>
+</section>
+{%- endif %}
+
+{%- if element.rules %}
+<section class="section" id="rules">
+  <h2>Rules</h2>
+  {%- for rule in gen.classrule_to_dict_view(element) %}
+  <article class="rule">
+    <h3>{{ rule.title|e if rule.title else 'Rule ' ~ loop.index }}</h3>
+    <div class="table-wrap">
+      <table class="table table--props">
+        <tbody>
+          {%- if rule.preconditions %}<tr><th scope="row">Preconditions</th><td><pre><code>{{ rule.preconditions|e }}</code></pre></td></tr>{% endif %}
+          {%- if rule.postconditions %}<tr><th scope="row">Postconditions</th><td><pre><code>{{ rule.postconditions|e }}</code></pre></td></tr>{% endif %}
+          {%- if rule.elseconditions %}<tr><th scope="row">Else</th><td><pre><code>{{ rule.elseconditions|e }}</code></pre></td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+  {%- endfor %}
+</section>
+{%- endif %}
+
+{%- set has_expressions = element.any_of or element.all_of or element.exactly_one_of or element.none_of or element.slot_conditions %}
+{%- if has_expressions %}
+<section class="section" id="logic">
+  <h2>Expressions &amp; logic</h2>
+  {%- for label, exprs in [('Any of — must satisfy at least one', element.any_of),
+                           ('All of — must satisfy every one', element.all_of),
+                           ('Exactly one of', element.exactly_one_of),
+                           ('None of — must satisfy none', element.none_of)] %}
+  {%- if exprs %}
+  <h3>{{ label|e }}</h3>
+  <ul class="notelist">{% for x in exprs %}<li><code>{{ x|e }}</code></li>{% endfor %}</ul>
+  {%- endif %}
+  {%- endfor %}
+  {%- if element.slot_conditions %}
+  <h3>Slot conditions</h3>
+  <dl class="deflist">
+    {%- for name, cond in element.slot_conditions.items() %}
+    <dt>{{ m.link(name) }}</dt><dd><code>{{ cond|e }}</code></dd>
+    {%- endfor %}
+  </dl>
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- if schemaview.is_mixin(element.name) %}
+<section class="section" id="mixin-usage">
+  <h2>Mixin usage</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Mixed into</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for c in schemaview.class_children(element.name, is_a=False) %}
+        <tr><td>{{ m.link(c) }}</td><td>{{ m.summary(schemaview.get_class(c).description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- set usages = schemaview.usage_index().get(element.name) %}
+{%- if usages %}
+<section class="section" id="usages">
+  <h2>Usages</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Used by</th><th scope="col">Used in</th><th scope="col">Metaslot</th><th scope="col">Used</th></tr></thead>
+      <tbody>
+        {%- for u in usages %}
+        <tr><td>{{ m.link(u.used_by) }}</td><td>{{ m.link(u.slot) }}</td><td><code>{{ u.metaslot|e }}</code></td><td>{{ m.link(u.used) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{% include "_common_metadata.html.jinja2" %}
+
+{%- set blobs = gen.example_object_blobs(element.name) %}
+{%- if blobs %}
+<section class="section" id="example-objects">
+  <h2>Example data</h2>
+  {%- for name, blob in blobs %}
+  <h3>{{ name|e }}</h3>
+  <div class="codeblock">
+    <button class="copy" type="button" data-copy>Copy</button>
+    <pre><code class="language-yaml">{{ blob|e }}</code></pre>
+  </div>
+  {%- endfor %}
+</section>
+{%- endif %}
+
+<section class="section" id="source">
+  <h2>LinkML source</h2>
+  <details class="disclosure">
+    <summary>Direct definition</summary>
+    {{ m.yaml_block(element) }}
+  </details>
+  <details class="disclosure">
+    <summary>Induced definition (all inherited slots resolved)</summary>
+    {{ m.yaml_block(element, true) }}
+  </details>
+</section>
+{%- endblock %}

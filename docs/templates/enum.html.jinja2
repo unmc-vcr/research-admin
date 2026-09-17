@@ -1,0 +1,150 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+
+{%- if element.title and element.title != element.name %}{% set title = element.title %}{% else %}{% set title = gen.name(element) %}{% endif %}
+
+{%- block page_title %}{{ title|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Enumerations</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ title|e }}</span>{% endblock -%}
+
+{%- macro enum_expression(expr) -%}
+<ul class="notelist">
+  {%- if expr.reachable_from %}
+  <li><strong>Reachable from</strong>{% if expr.reachable_from.source_ontology %} {{ m.uri_link(expr.reachable_from.source_ontology) }}{% endif %}
+    <ul>
+      {%- if expr.reachable_from.source_nodes %}<li>Source nodes: {% for n in expr.reachable_from.source_nodes %}<code>{{ n|e }}</code>{{ ', ' if not loop.last }}{% endfor %}</li>{% endif %}
+      {%- if expr.reachable_from.relationship_types %}<li>Via relationships: {% for r in expr.reachable_from.relationship_types %}<code>{{ r|e }}</code>{{ ', ' if not loop.last }}{% endfor %}</li>{% endif %}
+      {%- if expr.reachable_from.is_direct %}<li>Direct descendants only</li>{% endif %}
+      {%- if expr.reachable_from.include_self %}<li>Includes the source node itself</li>{% endif %}
+      {%- if expr.reachable_from.traverse_up %}<li>Traverses upward (ancestors)</li>{% endif %}
+    </ul>
+  </li>
+  {%- endif %}
+  {%- if expr.concepts %}<li><strong>Concepts:</strong> {{ m.uri_link_list(expr.concepts) }}</li>{% endif %}
+  {%- if expr.code_set %}<li><strong>Code set:</strong> {{ m.uri_link(expr.code_set) }}{% if expr.code_set_version %} (version {{ expr.code_set_version|e }}){% endif %}</li>{% endif %}
+  {%- if expr.matches %}<li><strong>Matches identifier pattern</strong> <code>{{ expr.matches.identifier_pattern|e }}</code></li>{% endif %}
+  {%- if expr.pv_formula %}<li><strong>Permissible value formula:</strong> <code>{{ expr.pv_formula|e }}</code></li>{% endif %}
+  {%- if expr.inherits %}<li><strong>Inherits from:</strong> {{ m.link_list(expr.inherits) }}</li>{% endif %}
+</ul>
+{%- endmacro -%}
+
+{%- block content %}
+<header class="page-header">
+  <p class="eyebrow">Enumeration</p>
+  <h1>{{ title|e }}{% if title != element.name %} <span class="page-header__alt">{{ element.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">
+    {%- if element.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif -%}
+    {%- if not element.permissible_values %}{{ m.badge('dynamic', 'info') }}{% endif -%}
+  </p>
+  {{ m.paragraphs(element.description, 'lede') }}
+</header>
+
+{%- if element.deprecated %}
+<p class="callout callout--warn"><strong>Deprecated.</strong> {{ element.deprecated|e }}</p>
+{%- endif %}
+
+<dl class="factbar">
+  <div><dt>URI</dt><dd>{{ m.uri_link(element) }}</dd></div>
+  {%- if element.enum_uri %}<div><dt>Enum URI</dt><dd>{{ m.uri_link(element.enum_uri) }}</dd></div>{% endif %}
+  <div><dt>Values</dt><dd>{{ element.permissible_values|length if element.permissible_values else 'dynamic' }}</dd></div>
+</dl>
+
+<section class="section" id="values">
+  <h2>Permissible values</h2>
+  {%- if element.permissible_values %}
+  <div class="table-wrap">
+    <table class="table table--pvs">
+      <thead><tr><th scope="col">Value</th><th scope="col">Label</th><th scope="col">Meaning</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for pv in element.permissible_values.values() %}
+        <tr{{ ' class="is-deprecated"'|safe if pv.deprecated }}>
+          <td><code class="pv">{{ pv.text|e }}</code>
+            {%- if pv.deprecated %} {{ m.badge('deprecated', 'deprecated') }}{% endif -%}
+          </td>
+          <td>{% if pv.title %}{{ pv.title|e }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+          <td>{% if pv.meaning %}{{ m.uri_link(pv.meaning) }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+          <td>{{ m.paragraphs(pv.description, 'cell') if pv.description else '' }}
+            {%- if pv.is_a %}<p class="cell muted">Is-a: {{ m.link(pv.is_a) }}</p>{% endif -%}
+            {%- if pv.mixins %}<p class="cell muted">Mixins: {{ m.link_list(pv.mixins) }}</p>{% endif -%}
+          </td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- else %}
+  <p class="callout"><strong>Dynamic enumeration.</strong> Values are resolved at validation time from the sources below rather than being listed in the schema.</p>
+  {%- endif %}
+</section>
+
+{%- set has_source = element.code_set or element.pv_formula or element.reachable_from or element.matches or element.concepts %}
+{%- if has_source %}
+<section class="section" id="value-source">
+  <h2>Value source</h2>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.code_set %}
+        <tr><th scope="row">Code set</th><td>{{ m.uri_link(element.code_set) }}
+          {%- if element.code_set_tag %} <span class="muted">tag {{ element.code_set_tag|e }}</span>{% endif -%}
+          {%- if element.code_set_version %} <span class="muted">version {{ element.code_set_version|e }}</span>{% endif -%}
+        </td></tr>
+        {%- endif %}
+        {%- if element.pv_formula %}{{ m.row('Permissible value formula', element.pv_formula|e) }}{% endif %}
+        {%- if element.concepts %}{{ m.row('Concepts', m.uri_link_list(element.concepts)) }}{% endif %}
+        {%- if element.matches %}{{ m.row('Matches', element.matches.identifier_pattern, true) }}{% endif %}
+      </tbody>
+    </table>
+  </div>
+  {%- if element.reachable_from %}
+  <h3>Reachable from</h3>
+  {{ enum_expression(element) }}
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- if element.inherits or element.include or element.minus %}
+<section class="section" id="operations">
+  <h2>Enumeration operations</h2>
+  {%- if element.inherits %}
+  <h3>Inherits from</h3>
+  <p>{{ m.link_list(element.inherits) }}</p>
+  {%- endif %}
+  {%- if element.include %}
+  <h3>Includes</h3>
+  {%- for expr in element.include %}{{ enum_expression(expr) }}{% endfor %}
+  {%- endif %}
+  {%- if element.minus %}
+  <h3>Excludes</h3>
+  {%- for expr in element.minus %}{{ enum_expression(expr) }}{% endfor %}
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- set slots_for_enum = schemaview.get_slots_by_enum(element.name) %}
+{%- if slots_for_enum %}
+<section class="section" id="slots">
+  <h2>Slots using this enumeration</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Slot</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for s in slots_for_enum %}
+        <tr><td>{{ m.link(s) }}</td><td>{{ m.summary(s.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{% include "_common_metadata.html.jinja2" %}
+
+<section class="section" id="source">
+  <h2>LinkML source</h2>
+  <details class="disclosure">
+    <summary>Definition</summary>
+    {{ m.yaml_block(element) }}
+  </details>
+</section>
+{%- endblock %}

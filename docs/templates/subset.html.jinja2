@@ -1,0 +1,117 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+
+{%- if element.title %}{% set title = element.title %}{% else %}{% set title = gen.name(element) %}{% endif %}
+
+{%- block page_title %}{{ title|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Subsets</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ title|e }}</span>{% endblock -%}
+
+{%- block content %}
+{%- set classes_in_subset = [] %}
+{%- set slots_in_subset = [] %}
+{%- set enums_in_subset = [] %}
+{%- for c in gen.all_class_objects()|sort(attribute=sort_by|default('name')) %}{% if element.name in c.in_subset %}{% set _ = classes_in_subset.append(c) %}{% endif %}{% endfor %}
+{%- for s in gen.all_slot_objects()|sort(attribute=sort_by|default('name')) %}{% if element.name in s.in_subset %}{% set _ = slots_in_subset.append(s) %}{% endif %}{% endfor %}
+{%- for e in gen.all_enum_objects()|sort(attribute=sort_by|default('name')) %}{% if element.name in e.in_subset %}{% set _ = enums_in_subset.append(e) %}{% endif %}{% endfor %}
+
+<header class="page-header">
+  <p class="eyebrow">Subset</p>
+  <h1>{{ title|e }}{% if title != element.name %} <span class="page-header__alt">{{ element.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">{% if element.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif %}</p>
+  {{ m.paragraphs(element.description, 'lede') }}
+</header>
+
+{%- if element.deprecated %}
+<p class="callout callout--warn"><strong>Deprecated.</strong> {{ element.deprecated|e }}</p>
+{%- endif %}
+
+<ul class="statgrid">
+  <li><a href="#classes"><span class="statgrid__n">{{ classes_in_subset|length }}</span><span class="statgrid__l">Classes</span></a></li>
+  <li><a href="#slots"><span class="statgrid__n">{{ slots_in_subset|length }}</span><span class="statgrid__l">Slots</span></a></li>
+  <li><a href="#enums"><span class="statgrid__n">{{ enums_in_subset|length }}</span><span class="statgrid__l">Enumerations</span></a></li>
+</ul>
+
+<section class="section" id="classes">
+  <h2>Classes in subset</h2>
+  {%- if classes_in_subset %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Class</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for c in classes_in_subset %}
+        <tr><td>{{ m.link(c) }}</td><td>{{ m.summary(c.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {%- for c in classes_in_subset %}
+  {%- set filtered_slots = [] %}
+  {%- for s in gen.class_induced_slots(c.name)|sort(attribute=sort_by|default('name')) %}
+    {%- if element.name in s.in_subset or (schemaview.get_slot(s.name) and element.name in schemaview.get_slot(s.name).in_subset) %}
+      {%- set _ = filtered_slots.append(s) %}
+    {%- endif %}
+  {%- endfor %}
+  {%- if filtered_slots %}
+  <h3>Slots of {{ m.link(c) }} also in this subset</h3>
+  <div class="table-wrap">
+    <table class="table table--slots">
+      <thead><tr><th scope="col">Name</th><th scope="col">Cardinality</th><th scope="col">Range</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for s in filtered_slots %}
+        <tr>
+          <td>{{ m.link(s) }}{% if s.identifier %} {{ m.badge('identifier', 'id') }}{% endif %}</td>
+          <td>{{ m.cardinality(s) }}</td>
+          <td>{{ m.slot_range(s) }}</td>
+          <td>{{ m.summary(s.description) }}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+  {%- endfor %}
+  {%- else %}
+  <p class="muted">No classes are tagged with this subset.</p>
+  {%- endif %}
+</section>
+
+<section class="section" id="slots">
+  <h2>Slots in subset</h2>
+  {%- if slots_in_subset %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Slot</th><th scope="col">Range</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for s in slots_in_subset %}
+        <tr><td>{{ m.link(s) }}</td><td>{{ m.link(s.range) if s.range }}</td><td>{{ m.summary(s.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- else %}
+  <p class="muted">No slots are tagged with this subset.</p>
+  {%- endif %}
+</section>
+
+<section class="section" id="enums">
+  <h2>Enumerations in subset</h2>
+  {%- if enums_in_subset %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Enumeration</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for e in enums_in_subset %}
+        <tr><td>{{ m.link(e) }}</td><td>{{ m.summary(e.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- else %}
+  <p class="muted">No enumerations are tagged with this subset.</p>
+  {%- endif %}
+</section>
+
+{% include "_common_metadata.html.jinja2" %}
+{%- endblock %}

@@ -1,0 +1,175 @@
+{#-
+  Shared helpers for the HTML docgen templates.
+
+  Import with context so that `gen`, `schemaview` and `root` are visible inside
+  the macros:
+
+      {% import "_macros.html.jinja2" as m with context %}
+
+  DocGenerator builds its Jinja environment without autoescaping, so every
+  value that comes out of the schema has to be escaped explicitly with `|e`.
+-#}
+
+{#- Turn one of DocGenerator's markdown links, `[Label](Target.md)`, into an
+    anchor. Targets that are absolute URIs (external elements) are left alone
+    and opened in a new tab; internal targets get `.md` swapped for `.html` and
+    are prefixed with `prefix` (used for sidebar links, which are generated
+    index-style and then re-rooted). -#}
+{%- macro _anchor(md, prefix='', css='') -%}
+  {%- if md and md[0] == '[' and md[-1] == ')' -%}
+    {%- set label = md[1:].split('](')[0] -%}
+    {%- set target = md.rsplit('](', 1)[1][:-1] -%}
+    {%- if target.endswith('.md') -%}
+      {%- set target = target[:-3] ~ '.html' -%}
+    {%- endif -%}
+    {%- if '://' in target -%}
+      <a class="{{ ('ref ref--external ' ~ css)|trim }}" href="{{ target|e }}" target="_blank" rel="noopener">{{ label|e }}</a>
+    {%- else -%}
+      <a class="{{ ('ref ' ~ css)|trim }}" href="{{ (prefix ~ target)|e }}">{{ label|e }}</a>
+    {%- endif -%}
+  {%- elif md and md != 'NONE' -%}
+    <span class="ref ref--plain">{{ md|e }}</span>
+  {%- else -%}
+    <span class="ref ref--none">&mdash;</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Just the URL of an element's page — used for Mermaid `click` directives,
+    where an anchor tag would be meaningless. Empty for external elements. -#}
+{%- macro href(e, index_link=false, prefix='') -%}
+  {%- set md = gen.link(e, index_link) -%}
+  {%- if md and md[0] == '[' and md[-1] == ')' -%}
+    {%- set target = md.rsplit('](', 1)[1][:-1] -%}
+    {%- if target.endswith('.md') -%}
+      {{- (prefix ~ target[:-3] ~ '.html')|e -}}
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Link to another element's page, relative to the current page. -#}
+{%- macro link(e) -%}
+  {{- _anchor(gen.link(e)) -}}
+{%- endmacro -%}
+
+{#- Link to another element's page, relative to the output root. `root` is set
+    by each page template and is '' for the index / flat layouts. -#}
+{%- macro nav_link(e) -%}
+  {{- _anchor(gen.link(e, true), root) -}}
+{%- endmacro -%}
+
+{#- Comma separated list of element links. -#}
+{%- macro link_list(names) -%}
+  {%- for n in names -%}{{ link(n) }}{{ ', ' if not loop.last }}{%- endfor -%}
+{%- endmacro -%}
+
+{#- Link out to a URI or CURIE. Unexpandable CURIEs are shown as code rather
+    than as a broken link. -#}
+{%- macro uri_link(x) -%}
+  {%- set md = gen.uri_link(x) -%}
+  {%- if md and md[0] == '[' and md[-1] == ')' -%}
+    {%- set label = md[1:].split('](')[0] -%}
+    {%- set target = md.rsplit('](', 1)[1][:-1] -%}
+    {%- if target.startswith('http://') or target.startswith('https://') -%}
+      <a class="ref ref--uri" href="{{ target|e }}" target="_blank" rel="noopener">{{ label|e }}</a>
+    {%- else -%}
+      <code class="uri">{{ label|e }}</code>
+    {%- endif -%}
+  {%- else -%}
+    <code class="uri">{{ md|e }}</code>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro uri_link_list(items) -%}
+  {%- for x in items -%}{{ uri_link(x) }}{{ ', ' if not loop.last }}{%- endfor -%}
+{%- endmacro -%}
+
+{#- A multi-line description rendered as paragraphs. -#}
+{%- macro paragraphs(value, css='prose') -%}
+  {%- if value -%}
+    {%- for para in value.split('\n\n') -%}
+      {%- if para.strip() %}<p class="{{ css }}">{{ para.strip()|e|replace('\n', ' ') }}</p>{% endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Single-line description for table cells. -#}
+{%- macro summary(value) -%}
+  {%- if value %}{{ value|enshorten|e }}{% else %}<span class="muted">&mdash;</span>{% endif -%}
+{%- endmacro -%}
+
+{%- macro badge(text, kind='') -%}
+  <span class="badge{{ ' badge--' ~ kind if kind }}">{{ text|e }}</span>
+{%- endmacro -%}
+
+{#- Cardinality as rendered by DocGenerator, with its markdown emphasis on
+    `_recommended_` turned into a badge. -#}
+{%- macro cardinality(slot) -%}
+  {%- set card = gen.cardinality(slot) -%}
+  {%- if card.endswith(' _recommended_') -%}
+    <span class="card">{{ card[:-14]|e }}</span> {{ badge('recommended', 'recommended') }}
+  {%- else -%}
+    <span class="card">{{ card|e }}</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A slot's range, accounting for `any_of` / `exactly_one_of` unions. -#}
+{%- macro slot_range(slot) -%}
+  {%- if slot.any_of or slot.exactly_one_of -%}
+    {%- for r in schemaview.slot_range_as_union(slot) -%}
+      {{ link(r) }}{% if not loop.last %} <span class="muted">or</span> {% endif %}
+    {%- endfor -%}
+  {%- else -%}
+    {{ link(slot.range) }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Open a two-column property table. Rows are emitted with `row()`. -#}
+{%- macro row(label, value, is_code=false) -%}
+  {%- if value is not none and value != '' and value != [] -%}
+    <tr><th scope="row">{{ label|e }}</th><td>{% if is_code %}<code>{{ value|e }}</code>{% else %}{{ value }}{% endif %}</td></tr>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro yes_row(label, value) -%}
+  {%- if value %}<tr><th scope="row">{{ label|e }}</th><td>{{ badge('yes', 'yes') }}</td></tr>{% endif -%}
+{%- endmacro -%}
+
+{#- is-a hierarchy for a class or a slot, rendered root-first with the current
+    element highlighted and its direct children listed underneath. -#}
+{%- macro hierarchy(element, kind) -%}
+  {%- if kind == 'class' -%}
+    {%- set ancestors = schemaview.class_ancestors(element.name, mixins=false, reflexive=true) -%}
+    {%- set children = schemaview.class_children(element.name, mixins=false) -%}
+  {%- else -%}
+    {%- set ancestors = schemaview.slot_ancestors(element.name, mixins=false, reflexive=true) -%}
+    {%- set children = schemaview.slot_children(element.name, mixins=false) -%}
+  {%- endif -%}
+  {%- set chain = ancestors|reverse|list -%}
+  {%- if chain|length > 1 or children -%}
+    <ul class="tree">
+      {%- for name in chain -%}
+        {%- set el = schemaview.get_element(name) -%}
+        <li class="tree__item{{ ' is-current' if name == element.name }}" style="--depth: {{ loop.index0 }}">
+          {%- if name == element.name -%}
+            <strong>{{ gen.name(el)|e }}</strong>
+          {%- else -%}
+            {{ link(el) }}
+          {%- endif -%}
+          {%- if el.mixins %} <span class="tree__mixins">[{{ link_list(el.mixins) }}]</span>{% endif -%}
+        </li>
+      {%- endfor -%}
+      {%- for name in children|sort -%}
+        <li class="tree__item" style="--depth: {{ chain|length }}">{{ link(name) }}</li>
+      {%- endfor -%}
+    </ul>
+  {%- else -%}
+    <p class="muted">No inheritance hierarchy.</p>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro yaml_block(element, inferred=false) -%}
+  <div class="codeblock">
+    <button class="copy" type="button" data-copy>Copy</button>
+    <pre><code class="language-yaml">{{ gen.yaml(element, inferred)|e }}</code></pre>
+  </div>
+{%- endmacro -%}

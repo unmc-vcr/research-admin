@@ -1,0 +1,138 @@
+{%- import "_macros.html.jinja2" as m with context -%}
+{#- Metadata blocks shared by class, slot, enum, type and subset pages. -#}
+
+{%- if element.aliases or element.in_subset or element.keywords or element.categories %}
+<section class="section" id="terminology">
+  <h2>Terminology</h2>
+  <dl class="deflist">
+    {%- if element.aliases %}
+    <dt>Aliases</dt>
+    <dd>{% for a in element.aliases %}<span class="chip">{{ a|e }}</span>{% endfor %}</dd>
+    {%- endif %}
+    {%- if element.keywords %}
+    <dt>Keywords</dt>
+    <dd>{% for k in element.keywords %}<span class="chip">{{ k|e }}</span>{% endfor %}</dd>
+    {%- endif %}
+    {%- if element.categories %}
+    <dt>Categories</dt>
+    <dd>{% for c in element.categories %}<span class="chip">{{ c|e }}</span>{% endfor %}</dd>
+    {%- endif %}
+    {%- if element.in_subset %}
+    <dt>In subsets</dt>
+    <dd>{{ m.link_list(element.in_subset) }}</dd>
+    {%- endif %}
+  </dl>
+</section>
+{%- endif %}
+
+{%- if element.examples %}
+<section class="section" id="examples">
+  <h2>Examples</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Value</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for x in element.examples %}
+        <tr><td><code>{{ x.value|e }}</code></td><td>{{ m.summary(x.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if element.comments or element.notes or element.todos or element.see_also or element.alt_descriptions %}
+<section class="section" id="notes">
+  <h2>Notes</h2>
+  {%- if element.comments %}
+  <h3>Comments</h3>
+  <ul class="notelist">{% for x in element.comments %}<li>{{ x|e }}</li>{% endfor %}</ul>
+  {%- endif %}
+  {%- if element.notes %}
+  <h3>Additional notes</h3>
+  <ul class="notelist">{% for x in element.notes %}<li>{{ x|e }}</li>{% endfor %}</ul>
+  {%- endif %}
+  {%- if element.todos %}
+  <h3>TODO</h3>
+  <ul class="notelist notelist--todo">{% for x in element.todos %}<li>{{ x|e }}</li>{% endfor %}</ul>
+  {%- endif %}
+  {%- if element.alt_descriptions %}
+  <h3>Alternative descriptions</h3>
+  <dl class="deflist">
+    {%- for source, alt in element.alt_descriptions.items() %}
+    <dt>{{ source|e }}</dt><dd>{{ alt.description|e }}</dd>
+    {%- endfor %}
+  </dl>
+  {%- endif %}
+  {%- if element.see_also %}
+  <h3>See also</h3>
+  <ul class="notelist">{% for x in element.see_also %}<li>{{ m.uri_link(x) }}</li>{% endfor %}</ul>
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- set mappings = schemaview.get_mappings(element.name) if element.name else {} %}
+{%- set has_mappings = mappings and mappings.values()|select|list|length > 0 %}
+{%- set has_admin = element.status or element.deprecated or element.id_prefixes or element.annotations
+      or element.from_schema or element.imported_from or (element.rank is defined and element.rank is not none and element.rank != 1000) %}
+{%- if has_mappings or has_admin %}
+<section class="section" id="provenance">
+  <h2>Identifiers &amp; provenance</h2>
+
+  {%- if has_admin %}
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {{ m.row('Status', element.status|e if element.status else none) }}
+        {%- if element.rank is defined and element.rank is not none and element.rank != 1000 %}
+        {{ m.row('Rank', element.rank) }}
+        {%- endif %}
+        {%- if element.deprecated %}
+        <tr><th scope="row">Deprecated</th><td>{{ element.deprecated|e }}
+          {%- if element.deprecated_element_has_exact_replacement %} Use {{ m.link(element.deprecated_element_has_exact_replacement) }} instead.{% endif -%}
+          {%- if element.deprecated_element_has_possible_replacement %} Consider {{ m.link(element.deprecated_element_has_possible_replacement) }}.{% endif -%}
+        </td></tr>
+        {%- endif %}
+        {%- if element.id_prefixes %}
+        <tr><th scope="row">Valid ID prefixes</th><td>{% for p in element.id_prefixes %}<span class="chip">{{ p|e }}</span>{% endfor %}</td></tr>
+        {%- endif %}
+        {{ m.row('From schema', element.from_schema|e if element.from_schema else none, true) }}
+        {{ m.row('Imported from', element.imported_from|e if element.imported_from else none, true) }}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+
+  {%- if element.annotations %}
+  <h3>Annotations</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Property</th><th scope="col">Value</th></tr></thead>
+      <tbody>
+        {%- for a in element.annotations %}
+        {%- if a|string|first != '_' %}
+        <tr><td><code>{{ a|e }}</code></td><td>{{ element.annotations[a].value|e }}</td></tr>
+        {%- endif %}
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+
+  {%- if has_mappings %}
+  <h3>Mappings</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Mapping type</th><th scope="col">Mapped value</th></tr></thead>
+      <tbody>
+        {%- for kind, values in mappings.items() %}
+        {%- if values %}
+        <tr><td>{{ kind|e }}</td><td>{{ m.uri_link_list(values) }}</td></tr>
+        {%- endif %}
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+</section>
+{%- endif %}

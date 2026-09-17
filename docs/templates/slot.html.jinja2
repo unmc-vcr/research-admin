@@ -1,0 +1,265 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+
+{%- if element.title %}{% set title = element.title %}{% else %}{% set title = element.name if gen.use_slot_uris else gen.name(element) %}{% endif %}
+
+{%- block page_title %}{{ title|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Slots</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ title|e }}</span>{% endblock -%}
+
+{%- block content %}
+<header class="page-header">
+  <p class="eyebrow">Slot</p>
+  <h1>{{ title|e }}{% if element.title %} <span class="page-header__alt">{{ element.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">
+    {%- if element.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif -%}
+    {%- if element.abstract %}{{ m.badge('abstract', 'abstract') }}{% endif -%}
+    {%- if element.required %}{{ m.badge('required', 'required') }}{% elif element.recommended %}{{ m.badge('recommended', 'recommended') }}{% endif -%}
+    {%- if element.multivalued %}{{ m.badge('multivalued', 'multi') }}{% endif -%}
+    {%- if element.identifier %}{{ m.badge('identifier', 'id') }}{% elif element.key %}{{ m.badge('key', 'id') }}{% endif -%}
+  </p>
+  {{ m.paragraphs(element.description, 'lede') }}
+</header>
+
+{%- if element.deprecated %}
+<p class="callout callout--warn"><strong>Deprecated.</strong> {{ element.deprecated|e }}</p>
+{%- endif %}
+{%- if element.abstract %}
+<p class="callout"><strong>Abstract slot.</strong> It should not be populated directly.</p>
+{%- endif %}
+
+<dl class="factbar">
+  <div><dt>URI</dt><dd>{{ m.uri_link(element) }}</dd></div>
+  <div><dt>Range</dt><dd>{{ m.slot_range(element) }}</dd></div>
+  <div><dt>Cardinality</dt><dd>{{ m.cardinality(element) }}</dd></div>
+  {%- if element.alias %}<div><dt>Alias</dt><dd><code>{{ element.alias|e }}</code></dd></div>{% endif %}
+</dl>
+
+<section class="section" id="inheritance">
+  <h2>Inheritance</h2>
+  {{ m.hierarchy(element, 'slot') }}
+  {%- if element.mixins %}
+  <p class="muted">Mixins: {{ m.link_list(element.mixins) }}</p>
+  {%- endif %}
+</section>
+
+{%- set classes_by_slot = schemaview.get_classes_by_slot(element, include_induced=True) %}
+{%- if classes_by_slot %}
+<section class="section" id="applicable-classes">
+  <h2>Applicable classes</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Class</th><th scope="col">Description</th><th scope="col">Modifies slot</th></tr></thead>
+      <tbody>
+        {%- set modifiers = schemaview.get_classes_modifying_slot(element) %}
+        {%- for c in classes_by_slot %}
+        <tr>
+          <td>{{ m.link(c) }}</td>
+          <td>{{ m.summary(schemaview.get_class(c).description) }}</td>
+          <td>{% if c in modifiers %}{{ m.badge('yes', 'yes') }}{% else %}<span class="muted">no</span>{% endif %}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+<section class="section" id="properties">
+  <h2>Properties</h2>
+
+  <h3>Type and range</h3>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {{ m.row('Range', m.slot_range(element)) }}
+        {%- if element.domain %}{{ m.row('Domain', m.link(element.domain)) }}{% endif %}
+        {%- if element.domain_of %}{{ m.row('Domain of', m.link_list(element.domain_of)) }}{% endif %}
+        {%- if element.slot_uri %}{{ m.row('Slot URI', m.uri_link(element.slot_uri)) }}{% endif %}
+        {%- if element.slot_group %}{{ m.row('Slot group', m.link(element.slot_group)) }}{% endif %}
+        {{ m.yes_row('Is grouping slot', element.is_grouping_slot) }}
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Cardinality and requirements</h3>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {{ m.row('Cardinality', m.cardinality(element)) }}
+        {{ m.yes_row('Required', element.required) }}
+        {{ m.yes_row('Recommended', element.recommended) }}
+        {{ m.yes_row('Multivalued', element.multivalued) }}
+        {%- if element.minimum_cardinality is not none %}{{ m.row('Minimum cardinality', element.minimum_cardinality) }}{% endif %}
+        {%- if element.maximum_cardinality is not none %}{{ m.row('Maximum cardinality', element.maximum_cardinality) }}{% endif %}
+        {%- if element.exact_cardinality is not none %}{{ m.row('Exact cardinality', element.exact_cardinality) }}{% endif %}
+        {%- if element.multivalued and element.list_elements_unique is not none %}{{ m.row('Elements must be unique', 'yes' if element.list_elements_unique else 'no') }}{% endif %}
+        {%- if element.multivalued and element.list_elements_ordered is not none %}{{ m.row('Elements are ordered', 'yes' if element.list_elements_ordered else 'no') }}{% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {%- set has_chars = element.key or element.identifier or element.designates_type or element.inherited
+      or element.readonly or element.ifabsent or element.owner or element.shared or element.is_class_field
+      or element.is_usage_slot or element.usage_slot_name or element.singular_name or schemaview.is_mixin(element.name) %}
+  {%- if has_chars %}
+  <h3>Slot characteristics</h3>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.singular_name %}{{ m.row('Singular name', element.singular_name|e) }}{% endif %}
+        {{ m.yes_row('Key', element.key) }}
+        {{ m.yes_row('Identifier', element.identifier) }}
+        {{ m.yes_row('Designates type', element.designates_type) }}
+        {{ m.yes_row('Inherited', element.inherited) }}
+        {{ m.yes_row('Read only', element.readonly) }}
+        {%- if element.ifabsent %}{{ m.row('If absent', element.ifabsent, true) }}{% endif %}
+        {%- if element.owner %}{{ m.row('Owner', m.link(element.owner)) }}{% endif %}
+        {{ m.yes_row('Shared', element.shared) }}
+        {{ m.yes_row('Is class field', element.is_class_field) }}
+        {{ m.yes_row('Is usage slot', element.is_usage_slot) }}
+        {%- if element.usage_slot_name %}{{ m.row('Usage slot name', element.usage_slot_name|e) }}{% endif %}
+        {{ m.yes_row('Mixin', schemaview.is_mixin(element.name)) }}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+
+  {%- set has_constraints = element.minimum_value is not none or element.maximum_value is not none
+      or element.pattern or element.structured_pattern or element.equals_string or element.equals_string_in
+      or element.equals_number or element.enum_range or element.unit or element.implicit_prefix %}
+  {%- if has_constraints %}
+  <h3>Value constraints</h3>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.minimum_value is not none or element.maximum_value is not none %}{{ m.row('Numeric range', gen.number_value_range(element)|e) }}{% endif %}
+        {%- if element.pattern %}{{ m.row('Regex pattern', element.pattern, true) }}{% endif %}
+        {%- if element.structured_pattern %}
+        <tr><th scope="row">Structured pattern</th><td>
+          <code>{{ element.structured_pattern.syntax|e }}</code>
+          {%- if element.structured_pattern.interpolated %} {{ m.badge('interpolated', 'info') }}{% endif -%}
+          {%- if element.structured_pattern.partial_match %} {{ m.badge('partial match', 'info') }}{% endif -%}
+        </td></tr>
+        {%- endif %}
+        {%- if element.equals_string %}{{ m.row('Must equal', element.equals_string, true) }}{% endif %}
+        {%- if element.equals_string_in %}<tr><th scope="row">Must be one of</th><td>{% for v in element.equals_string_in %}<code>{{ v|e }}</code>{{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endif %}
+        {%- if element.equals_number is not none %}{{ m.row('Must equal', element.equals_number) }}{% endif %}
+        {%- if element.enum_range %}{{ m.row('Enumeration range', m.link(element.enum_range)) }}{% endif %}
+        {%- if element.implicit_prefix %}{{ m.row('Implicit prefix', element.implicit_prefix, true) }}{% endif %}
+        {%- if element.unit %}
+        <tr><th scope="row">Unit</th><td>
+          {%- if element.unit.symbol %}<code>{{ element.unit.symbol|e }}</code> {% endif -%}
+          {%- if element.unit.descriptive_name %}{{ element.unit.descriptive_name|e }} {% endif -%}
+          {%- if element.unit.ucum_code %}(UCUM <code>{{ element.unit.ucum_code|e }}</code>){% endif -%}
+        </td></tr>
+        {%- endif %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+</section>
+
+{%- set has_rel = element.symmetric or element.asymmetric or element.reflexive or element.locally_reflexive
+    or element.irreflexive or element.transitive or element.inverse or element.transitive_form_of
+    or element.reflexive_transitive_form_of or element.role or element.relational_role or element.subproperty_of %}
+{%- if has_rel %}
+<section class="section" id="relationship">
+  <h2>Relationship properties</h2>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {{ m.yes_row('Symmetric', element.symmetric) }}
+        {{ m.yes_row('Asymmetric', element.asymmetric) }}
+        {{ m.yes_row('Reflexive', element.reflexive) }}
+        {{ m.yes_row('Locally reflexive', element.locally_reflexive) }}
+        {{ m.yes_row('Irreflexive', element.irreflexive) }}
+        {{ m.yes_row('Transitive', element.transitive) }}
+        {%- if element.inverse %}{{ m.row('Inverse', m.link(element.inverse)) }}{% endif %}
+        {%- if element.subproperty_of %}{{ m.row('Subproperty of', m.link(element.subproperty_of)) }}{% endif %}
+        {%- if element.transitive_form_of %}{{ m.row('Transitive form of', m.link(element.transitive_form_of)) }}{% endif %}
+        {%- if element.reflexive_transitive_form_of %}{{ m.row('Reflexive transitive form of', m.link(element.reflexive_transitive_form_of)) }}{% endif %}
+        {%- if element.role %}{{ m.row('Role', element.role|e) }}{% endif %}
+        {%- if element.relational_role %}{{ m.row('Relational role', element.relational_role|e) }}{% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- set has_expressions = element.any_of or element.all_of or element.exactly_one_of or element.none_of
+    or element.equals_expression or element.has_member or element.all_members or element.range_expression
+    or element.path_rule or element.array or element.bindings or element.type_mappings or element.value_presence %}
+{%- if has_expressions %}
+<section class="section" id="logic">
+  <h2>Expressions &amp; logic</h2>
+  {%- for label, exprs in [('Any of — must satisfy at least one', element.any_of),
+                           ('All of — must satisfy every one', element.all_of),
+                           ('Exactly one of', element.exactly_one_of),
+                           ('None of — must satisfy none', element.none_of)] %}
+  {%- if exprs %}
+  <h3>{{ label|e }}</h3>
+  <ul class="notelist">{% for x in exprs %}<li><code>{{ x|e }}</code></li>{% endfor %}</ul>
+  {%- endif %}
+  {%- endfor %}
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.equals_expression %}{{ m.row('Equals expression', element.equals_expression, true) }}{% endif %}
+        {%- if element.range_expression %}{{ m.row('Range expression', element.range_expression|e) }}{% endif %}
+        {%- if element.has_member %}{{ m.row('Has member', element.has_member|e) }}{% endif %}
+        {%- if element.all_members %}{{ m.row('All members', element.all_members|e) }}{% endif %}
+        {%- if element.value_presence %}{{ m.row('Value presence', element.value_presence|e) }}{% endif %}
+        {%- if element.path_rule %}{{ m.row('Path rule', element.path_rule|e) }}{% endif %}
+        {%- if element.array %}{{ m.row('Array dimensions', element.array.dimensions|join(' x ')|e if element.array.dimensions else 'yes') }}{% endif %}
+        {%- if element.bindings %}<tr><th scope="row">Term bindings</th><td>{% for b in element.bindings %}<code>{{ b|e }}</code>{% endfor %}</td></tr>{% endif %}
+        {%- if element.type_mappings %}<tr><th scope="row">Type mappings</th><td>{% for tm in element.type_mappings %}<code>{{ tm.framework|e }}: {{ tm.mapping|e }}</code>{{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if schemaview.is_mixin(element.name) %}
+<section class="section" id="mixin-usage">
+  <h2>Mixin usage</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Mixed into</th><th scope="col">Description</th><th scope="col">Range</th></tr></thead>
+      <tbody>
+        {%- for s in schemaview.slot_children(element.name, is_a=False) %}
+        <tr><td>{{ m.link(s) }}</td><td>{{ m.summary(schemaview.get_slot(s).description) }}</td><td>{{ m.link(schemaview.get_slot(s).range) if schemaview.get_slot(s).range }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- set usages = schemaview.usage_index().get(element.name) %}
+{%- if usages %}
+<section class="section" id="usages">
+  <h2>Usages</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Used by</th><th scope="col">Used in</th><th scope="col">Metaslot</th><th scope="col">Used</th></tr></thead>
+      <tbody>
+        {%- for u in usages %}
+        <tr><td>{{ m.link(u.used_by) }}</td><td>{{ m.link(u.slot) }}</td><td><code>{{ u.metaslot|e }}</code></td><td>{{ m.link(u.used) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{% include "_common_metadata.html.jinja2" %}
+
+<section class="section" id="source">
+  <h2>LinkML source</h2>
+  <details class="disclosure">
+    <summary>Induced definition</summary>
+    {{ m.yaml_block(element) }}
+  </details>
+</section>
+{%- endblock %}

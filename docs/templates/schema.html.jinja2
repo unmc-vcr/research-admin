@@ -1,0 +1,73 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+{#-
+  One page per schema in the import closure. Unlike the element templates this
+  one receives `schema` rather than `element`.
+-#}
+
+{%- block page_title %}{{ schema.title|e if schema.title else schema.name|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Schemas</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ schema.name|e }}</span>{% endblock -%}
+
+{%- block content %}
+<header class="page-header">
+  <p class="eyebrow">Schema</p>
+  <h1>{{ schema.title|e if schema.title else schema.name|e }}{% if schema.title %} <span class="page-header__alt">{{ schema.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">{% if schema.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif %}</p>
+  {{ m.paragraphs(schema.description, 'lede') }}
+</header>
+
+<dl class="factbar">
+  <div><dt>URI</dt><dd><a href="{{ schema.id|e }}" target="_blank" rel="noopener"><code>{{ schema.id|e }}</code></a></dd></div>
+  {%- if schema.version %}<div><dt>Version</dt><dd>{{ schema.version|e }}</dd></div>{% endif %}
+  {%- if schema.default_prefix %}<div><dt>Default prefix</dt><dd><code>{{ schema.default_prefix|e }}</code></dd></div>{% endif %}
+  {%- if schema.default_range %}<div><dt>Default range</dt><dd><code>{{ schema.default_range|e }}</code></dd></div>{% endif %}
+  {%- if schema.license %}<div><dt>License</dt><dd><a href="{{ schema.license|e }}" target="_blank" rel="noopener">{{ schema.license|e }}</a></dd></div>{% endif %}
+  {%- if schema.source_file %}<div><dt>Source file</dt><dd><code>{{ schema.source_file|e }}</code></dd></div>{% endif %}
+</dl>
+
+{%- for label, anchor, items in [('Classes', 'classes', schema.classes),
+                                 ('Slots', 'slots', schema.slots),
+                                 ('Enumerations', 'enums', schema.enums),
+                                 ('Types', 'types', schema.types),
+                                 ('Subsets', 'subsets', schema.subsets)] %}
+{%- if items %}
+<section class="section" id="{{ anchor }}">
+  <h2>{{ label }}</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for el in items.values()|sort(attribute='name') %}
+        <tr><td>{{ m.link(el) }}</td><td>{{ m.summary(el.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+{%- endfor %}
+
+{%- if schema.prefixes %}
+<section class="section" id="prefixes">
+  <h2>Prefixes</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Prefix</th><th scope="col">Expansion</th></tr></thead>
+      <tbody>
+        {%- for p in schema.prefixes.values() %}
+        <tr><td><code>{{ p.prefix_prefix|e }}</code></td><td><a href="{{ p.prefix_reference|e }}" target="_blank" rel="noopener"><code>{{ p.prefix_reference|e }}</code></a></td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if schema.imports %}
+<section class="section" id="imports">
+  <h2>Imports</h2>
+  <ul class="notelist">{% for i in schema.imports %}<li><code>{{ i|e }}</code></li>{% endfor %}</ul>
+</section>
+{%- endif %}
+{%- endblock %}

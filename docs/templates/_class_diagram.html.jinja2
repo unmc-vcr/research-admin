@@ -1,0 +1,58 @@
+{%- import "_graph.html.jinja2" as g with context -%}
+{#-
+  Diagram for a single class: its is-a chain, its direct children, and whatever
+  its slots point at.
+
+  `diagram_type` comes from `--diagram-type`. The ER and PlantUML styles are
+  rendered by DocGenerator itself and are passed straight through; everything
+  else becomes the interactive React Flow graph, which is the default.
+-#}
+<section class="section" id="diagram">
+  <h2>Diagram</h2>
+{%- if diagram_type == 'er_diagram' %}
+  <pre class="mermaid" data-mermaid>{{ gen.mermaid_diagram([element.name])|e }}</pre>
+{%- elif diagram_type == 'plantuml_class_diagram' %}
+  <div class="codeblock"><pre><code class="language-plantuml">{{ gen.mermaid_diagram([element.name])|e }}</code></pre></div>
+{%- else %}
+  {%- set nodes = [] %}
+  {%- set edges = [] %}
+  {%- set ids = [] %}
+
+  {#- The focus class, its is-a chain root-first, then its direct children. -#}
+  {%- set family = schemaview.class_ancestors(element.name, mixins=False, reflexive=True)|reverse|list
+                   + schemaview.class_children(element.name, mixins=False)|sort %}
+  {%- for name in family %}
+    {%- set cls = schemaview.get_class(name) %}
+    {%- if cls %}
+      {%- set _ = g.add_class_node(nodes, ids, cls, name == element.name) %}
+    {%- endif %}
+  {%- endfor %}
+
+  {#- Whatever the focus class's own slots point at: other classes get full
+      nodes so their slots are visible, enums and types get compact ones. -#}
+  {%- for s in gen.class_induced_slots(element.name) %}
+    {%- if s.range and s.range != element.name and s.range not in gen.all_type_object_names() %}
+      {%- set target = schemaview.get_element(s.range) %}
+      {%- if target %}
+        {%- if schemaview.get_class(s.range) %}
+          {%- set _ = g.add_class_node(nodes, ids, target) %}
+        {%- else %}
+          {%- set _ = g.add_entity_node(nodes, ids, target) %}
+        {%- endif %}
+      {%- endif %}
+    {%- endif %}
+  {%- endfor %}
+
+  {#- Edges last, so both endpoints are known and out-of-view targets drop out. -#}
+  {%- for name in family %}
+    {%- set cls = schemaview.get_class(name) %}
+    {%- if cls %}
+      {%- set _ = g.add_structural_edges(edges, ids, cls) %}
+    {%- endif %}
+  {%- endfor %}
+  {%- set _ = g.add_range_edges(edges, ids, element) %}
+
+  {{ g.diagram({'nodes': nodes, 'edges': edges, 'focus': gen.name(element), 'expanded': true},
+               gen.name(element) ~ ' in context: its inheritance chain and the classes and enumerations its slots point at.') }}
+{%- endif %}
+</section>

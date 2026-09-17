@@ -1,0 +1,124 @@
+{%- set root = '../' if gen.subfolder_type_separation else '' -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+
+{%- if element.title and element.title != element.name %}{% set title = element.title %}{% else %}{% set title = gen.name(element) %}{% endif %}
+
+{%- block page_title %}{{ title|e }}{% endblock -%}
+{%- block breadcrumb %} <span aria-hidden="true">/</span> <span>Types</span> <span aria-hidden="true">/</span> <span aria-current="page">{{ title|e }}</span>{% endblock -%}
+
+{%- block content %}
+<header class="page-header">
+  <p class="eyebrow">Type</p>
+  <h1>{{ title|e }}{% if title != element.name %} <span class="page-header__alt">{{ element.name|e }}</span>{% endif %}</h1>
+  <p class="badgerow">{% if element.deprecated %}{{ m.badge('deprecated', 'deprecated') }}{% endif %}</p>
+  {{ m.paragraphs(element.description, 'lede') }}
+</header>
+
+{%- if element.deprecated %}
+<p class="callout callout--warn"><strong>Deprecated.</strong> {{ element.deprecated|e }}</p>
+{%- endif %}
+
+<dl class="factbar">
+  <div><dt>URI</dt><dd>{{ m.uri_link(element) }}</dd></div>
+  {%- if element.base %}<div><dt>Base</dt><dd><code>{{ element.base|e }}</code></dd></div>{% endif %}
+  {%- if element.typeof %}<div><dt>Type of</dt><dd>{{ m.link(element.typeof) }}</dd></div>{% endif %}
+</dl>
+
+<section class="section" id="properties">
+  <h2>Type properties</h2>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.typeof %}{{ m.row('Type of', m.link(element.typeof)) }}{% endif %}
+        {%- if element.base %}{{ m.row('Base', element.base, true) }}{% endif %}
+        {%- if element.uri %}{{ m.row('Type URI', m.uri_link(element.uri)) }}{% endif %}
+        {%- if element.repr %}{{ m.row('Representation', element.repr, true) }}{% endif %}
+        {%- if element.union_of %}{{ m.row('Union of', m.link_list(element.union_of)) }}{% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{%- set has_constraints = element.minimum_value is not none or element.maximum_value is not none
+    or element.pattern or element.structured_pattern or element.equals_string or element.equals_string_in
+    or element.equals_number or element.unit or element.implicit_prefix %}
+{%- if has_constraints %}
+<section class="section" id="constraints">
+  <h2>Value constraints</h2>
+  <div class="table-wrap">
+    <table class="table table--props">
+      <tbody>
+        {%- if element.minimum_value is not none or element.maximum_value is not none %}{{ m.row('Numeric range', gen.number_value_range(element)|e) }}{% endif %}
+        {%- if element.pattern %}{{ m.row('Regex pattern', element.pattern, true) }}{% endif %}
+        {%- if element.structured_pattern %}
+        <tr><th scope="row">Structured pattern</th><td>
+          <code>{{ element.structured_pattern.syntax|e }}</code>
+          {%- if element.structured_pattern.interpolated %} {{ m.badge('interpolated', 'info') }}{% endif -%}
+          {%- if element.structured_pattern.partial_match %} {{ m.badge('partial match', 'info') }}{% endif -%}
+        </td></tr>
+        {%- endif %}
+        {%- if element.equals_string %}{{ m.row('Must equal', element.equals_string, true) }}{% endif %}
+        {%- if element.equals_string_in %}<tr><th scope="row">Must be one of</th><td>{% for v in element.equals_string_in %}<code>{{ v|e }}</code>{{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endif %}
+        {%- if element.equals_number is not none %}{{ m.row('Must equal', element.equals_number) }}{% endif %}
+        {%- if element.implicit_prefix %}{{ m.row('Implicit prefix', element.implicit_prefix, true) }}{% endif %}
+        {%- if element.unit %}
+        <tr><th scope="row">Unit</th><td>
+          {%- if element.unit.symbol %}<code>{{ element.unit.symbol|e }}</code> {% endif -%}
+          {%- if element.unit.descriptive_name %}{{ element.unit.descriptive_name|e }} {% endif -%}
+          {%- if element.unit.ucum_code %}(UCUM <code>{{ element.unit.ucum_code|e }}</code>){% endif -%}
+        </td></tr>
+        {%- endif %}
+      </tbody>
+    </table>
+  </div>
+  {%- if element.structured_pattern and element.pattern %}
+  <p class="muted">The structured pattern above is expanded, using the schema's <code>settings</code>, into the regular expression shown.</p>
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- set has_expressions = element.any_of or element.all_of or element.exactly_one_of or element.none_of %}
+{%- if has_expressions %}
+<section class="section" id="logic">
+  <h2>Type expressions</h2>
+  {%- for label, exprs in [('Any of — must satisfy at least one', element.any_of),
+                           ('All of — must satisfy every one', element.all_of),
+                           ('Exactly one of', element.exactly_one_of),
+                           ('None of — must satisfy none', element.none_of)] %}
+  {%- if exprs %}
+  <h3>{{ label|e }}</h3>
+  <ul class="notelist">{% for x in exprs %}<li><code>{{ x|e }}</code></li>{% endfor %}</ul>
+  {%- endif %}
+  {%- endfor %}
+</section>
+{%- endif %}
+
+{%- set using_slots = [] %}
+{%- for s in gen.all_slot_objects() %}{% if s.range == element.name %}{% set _ = using_slots.append(s) %}{% endif %}{% endfor %}
+{%- if using_slots %}
+<section class="section" id="slots">
+  <h2>Slots using this type</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Slot</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for s in using_slots|sort(attribute='name') %}
+        <tr><td>{{ m.link(s) }}</td><td>{{ m.summary(s.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{% include "_common_metadata.html.jinja2" %}
+
+<section class="section" id="source">
+  <h2>LinkML source</h2>
+  <details class="disclosure">
+    <summary>Definition</summary>
+    {{ m.yaml_block(element) }}
+  </details>
+</section>
+{%- endblock %}

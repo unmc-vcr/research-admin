@@ -1,0 +1,201 @@
+{%- set root = '' -%}
+{%- set has_diagram = include_top_level_diagram
+                     and diagram_type not in ('er_diagram', 'plantuml_class_diagram') -%}
+{%- extends "_base.html.jinja2" -%}
+{%- import "_macros.html.jinja2" as m with context -%}
+{%- import "_graph.html.jinja2" as g with context -%}
+
+{%- block page_title %}Overview{% endblock -%}
+
+{%- block content %}
+{%- set class_objects = gen.all_class_objects()|sort(attribute=sort_by|default('name'))|list %}
+{%- set slot_objects = gen.all_slot_objects()|sort(attribute=sort_by|default('name'))|list %}
+{%- set enum_objects = gen.all_enum_objects()|sort(attribute=sort_by|default('name'))|list %}
+{%- set type_objects = gen.all_type_objects()|sort(attribute=sort_by|default('name'))|list %}
+{%- set subset_objects = schemaview.all_subsets().values()|sort(attribute='name')|list %}
+
+<header class="page-header">
+  <p class="eyebrow">Schema</p>
+  <h1>{{ gen.schema_title()|e }}</h1>
+  {{ m.paragraphs(schema.description, 'lede') }}
+</header>
+
+<dl class="factbar">
+  <div><dt>Name</dt><dd><code>{{ schema.name|e }}</code></dd></div>
+  <div><dt>URI</dt><dd><a href="{{ schema.id|e }}" target="_blank" rel="noopener"><code>{{ schema.id|e }}</code></a></dd></div>
+  {%- if schema.version %}<div><dt>Version</dt><dd>{{ schema.version|e }}</dd></div>{% endif %}
+  {%- if schema.default_prefix %}<div><dt>Default prefix</dt><dd><code>{{ schema.default_prefix|e }}</code></dd></div>{% endif %}
+  {%- if schema.default_range %}<div><dt>Default range</dt><dd>{{ m.nav_link(schema.default_range) }}</dd></div>{% endif %}
+  {%- if schema.license %}<div><dt>License</dt><dd><a href="{{ schema.license|e }}" target="_blank" rel="noopener">{{ schema.license|e }}</a></dd></div>{% endif %}
+</dl>
+
+<ul class="statgrid">
+  {%- if class_objects %}<li><a href="#classes"><span class="statgrid__n">{{ class_objects|length }}</span><span class="statgrid__l">Classes</span></a></li>{% endif %}
+  {%- if slot_objects %}<li><a href="#slots"><span class="statgrid__n">{{ slot_objects|length }}</span><span class="statgrid__l">Slots</span></a></li>{% endif %}
+  {%- if enum_objects %}<li><a href="#enums"><span class="statgrid__n">{{ enum_objects|length }}</span><span class="statgrid__l">Enumerations</span></a></li>{% endif %}
+  {%- if type_objects %}<li><a href="#types"><span class="statgrid__n">{{ type_objects|length }}</span><span class="statgrid__l">Types</span></a></li>{% endif %}
+  {%- if subset_objects %}<li><a href="#subsets"><span class="statgrid__n">{{ subset_objects|length }}</span><span class="statgrid__l">Subsets</span></a></li>{% endif %}
+</ul>
+
+{%- if include_top_level_diagram and class_objects %}
+<section class="section" id="diagram">
+  <h2>Schema diagram</h2>
+  {%- if diagram_type == 'plantuml_class_diagram' %}
+  <div class="codeblock"><pre><code class="language-plantuml">{{ gen.mermaid_diagram()|e }}</code></pre></div>
+  {%- elif diagram_type == 'er_diagram' %}
+  <pre class="mermaid" data-mermaid>{{ gen.mermaid_diagram()|e }}</pre>
+  {%- else %}
+  {#- DocGenerator only renders schema-level diagrams for the ER and PlantUML
+      styles, so the whole-schema graph is assembled here: every class, plus
+      the enumerations its slots point at. Node URLs are index-relative. -#}
+  {%- set nodes = [] %}
+  {%- set edges = [] %}
+  {%- set ids = [] %}
+  {%- for c in class_objects %}
+    {%- set _ = g.add_class_node(nodes, ids, c, false, true) %}
+  {%- endfor %}
+  {%- for c in class_objects %}
+    {%- for s in gen.get_direct_slots(c) %}
+      {%- if s.range and schemaview.get_enum(s.range) %}
+        {%- set _ = g.add_entity_node(nodes, ids, schemaview.get_enum(s.range), true) %}
+      {%- endif %}
+    {%- endfor %}
+  {%- endfor %}
+  {%- for c in class_objects %}
+    {%- set _ = g.add_structural_edges(edges, ids, c) %}
+    {%- set _ = g.add_range_edges(edges, ids, c) %}
+  {%- endfor %}
+  {{ g.diagram({'nodes': nodes, 'edges': edges, 'focus': none, 'expanded': false},
+               'Every class in ' ~ gen.schema_title() ~ ', with inheritance and the slots that connect them.') }}
+  {%- endif %}
+</section>
+{%- endif %}
+
+{%- if class_objects %}
+<section class="section" id="classes">
+  <h2>Classes</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Class</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- if gen.hierarchical_class_view %}
+        {%- for depth, name in gen.class_hierarchy_as_tuples() %}
+        {%- set c = schemaview.get_class(name) %}
+        <tr><td style="--depth: {{ depth }}" class="indent">{{ m.nav_link(c) }}{% if c.abstract %} {{ m.badge('abstract', 'abstract') }}{% endif %}</td><td>{{ m.summary(c.description) }}</td></tr>
+        {%- endfor %}
+        {%- else %}
+        {%- for c in class_objects %}
+        <tr><td>{{ m.nav_link(c) }}{% if c.abstract %} {{ m.badge('abstract', 'abstract') }}{% endif %}{% if c.mixin %} {{ m.badge('mixin', 'mixin') }}{% endif %}</td><td>{{ m.summary(c.description) }}</td></tr>
+        {%- endfor %}
+        {%- endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if slot_objects %}
+<section class="section" id="slots">
+  <h2>Slots</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Slot</th><th scope="col">Range</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for s in slot_objects %}
+        <tr><td>{{ m.nav_link(s) }}</td><td>{{ m.nav_link(s.range) if s.range else '' }}</td><td>{{ m.summary(s.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if enum_objects %}
+<section class="section" id="enums">
+  <h2>Enumerations</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Enumeration</th><th scope="col">Values</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for e in enum_objects %}
+        <tr><td>{{ m.nav_link(e) }}</td><td>{{ e.permissible_values|length if e.permissible_values else '—' }}</td><td>{{ m.summary(e.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if type_objects %}
+<section class="section" id="types">
+  <h2>Types</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Type</th><th scope="col">Base</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for t in type_objects %}
+        <tr><td>{{ m.nav_link(t) }}</td><td>{% if t.base %}<code>{{ t.base|e }}</code>{% endif %}</td><td>{{ m.summary(t.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if subset_objects %}
+<section class="section" id="subsets">
+  <h2>Subsets</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Subset</th><th scope="col">Description</th></tr></thead>
+      <tbody>
+        {%- for ss in subset_objects %}
+        <tr><td>{{ m.nav_link(ss) }}</td><td>{{ m.summary(ss.description) }}</td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if schema.prefixes %}
+<section class="section" id="prefixes">
+  <h2>Prefixes</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Prefix</th><th scope="col">Expansion</th></tr></thead>
+      <tbody>
+        {%- for p in schema.prefixes.values() %}
+        <tr><td><code>{{ p.prefix_prefix|e }}</code></td><td><a href="{{ p.prefix_reference|e }}" target="_blank" rel="noopener"><code>{{ p.prefix_reference|e }}</code></a></td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if schema.settings %}
+<section class="section" id="settings">
+  <h2>Settings</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Key</th><th scope="col">Value</th></tr></thead>
+      <tbody>
+        {%- for s in schema.settings.values() %}
+        <tr><td><code>{{ s.setting_key|e }}</code></td><td><code>{{ s.setting_value|e }}</code></td></tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- endif %}
+
+{%- if schema.imports %}
+<section class="section" id="imports">
+  <h2>Imports</h2>
+  <ul class="notelist">
+    {%- for i in schema.imports %}<li><code>{{ i|e }}</code></li>{% endfor %}
+  </ul>
+</section>
+{%- endif %}
+{%- endblock %}

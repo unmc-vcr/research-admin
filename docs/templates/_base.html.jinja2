@@ -1,0 +1,158 @@
+{%- import "_macros.html.jinja2" as m with context -%}
+{#-
+  Page shell shared by every generated page.
+
+  Child templates set `root` (the relative path back to the output directory
+  root) before extending this template, and fill in the `page_title`,
+  `page_kind` and `content` blocks.
+-#}
+{%- set root = root|default('') -%}
+{%- set active_name = element.name if element is defined else none -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block page_title %}{{ gen.schema_title()|e }}{% endblock %} &middot; {{ gen.schema_title()|e }}</title>
+{%- if element is defined and element.description %}
+<meta name="description" content="{{ element.description|enshorten|e }}">
+{%- elif schemaview.schema.description %}
+<meta name="description" content="{{ schemaview.schema.description|enshorten|e }}">
+{%- endif %}
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23c8102e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="{{ root }}assets/css/linkml-docs.css">
+{%- if has_diagram|default(false) %}
+{#- The interactive diagrams are React Flow laid out with ELK, loaded straight
+    from a CDN — this site has no bundler. The import map is what lets the
+    bare specifiers in assets/js/diagram.js resolve, and what guarantees
+    React Flow and our own code share a single React instance. Versions are
+    pinned; bump them deliberately. -#}
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.2.0",
+    "react/jsx-runtime": "https://esm.sh/react@19.2.0/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@19.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.0/client",
+    "reactflow": "https://esm.sh/reactflow@11.11.4?external=react,react-dom",
+    "elkjs": "https://esm.sh/elkjs@0.11.1/lib/elk.bundled.js"
+  }
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.11.4/dist/style.css">
+{%- endif %}
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+
+<header class="topbar">
+  <button class="topbar__toggle" type="button" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false">
+    <span class="sr-only">Toggle navigation</span>
+    <span class="hamburger" aria-hidden="true"></span>
+  </button>
+  <a class="topbar__brand" href="{{ root }}index.html">
+    <span class="topbar__title">{{ gen.schema_title()|e }}</span>
+    <span class="topbar__sub">schema documentation</span>
+  </a>
+  <div class="topbar__spacer"></div>
+  <button class="theme-toggle" type="button" data-theme-toggle title="Switch between light and dark">
+    <span class="sr-only">Toggle colour scheme</span>
+    <span aria-hidden="true" data-theme-icon>&#9789;</span>
+  </button>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar" aria-label="Schema elements">
+    <div class="sidebar__search">
+      <label class="sr-only" for="nav-filter">Filter elements</label>
+      <input id="nav-filter" type="search" placeholder="Filter elements&hellip;" autocomplete="off" data-nav-filter>
+    </div>
+    <div class="sidebar__scroll" data-nav-root>
+      {%- set class_objects = gen.all_class_objects()|sort(attribute=sort_by|default('name'))|list %}
+      {%- if class_objects %}
+      <details class="navgroup" open>
+        <summary>Classes <span class="navgroup__count">{{ class_objects|length }}</span></summary>
+        <ul>
+          {%- for c in class_objects %}
+          <li{{ ' class="is-active"'|safe if c.name == active_name }}>{{ m.nav_link(c) }}</li>
+          {%- endfor %}
+        </ul>
+      </details>
+      {%- endif %}
+
+      {%- set slot_objects = gen.all_slot_objects()|sort(attribute=sort_by|default('name'))|list %}
+      {%- if slot_objects %}
+      <details class="navgroup" open>
+        <summary>Slots <span class="navgroup__count">{{ slot_objects|length }}</span></summary>
+        <ul>
+          {%- for s in slot_objects %}
+          <li{{ ' class="is-active"'|safe if s.name == active_name }}>{{ m.nav_link(s) }}</li>
+          {%- endfor %}
+        </ul>
+      </details>
+      {%- endif %}
+
+      {%- set enum_objects = gen.all_enum_objects()|sort(attribute=sort_by|default('name'))|list %}
+      {%- if enum_objects %}
+      <details class="navgroup" open>
+        <summary>Enumerations <span class="navgroup__count">{{ enum_objects|length }}</span></summary>
+        <ul>
+          {%- for e in enum_objects %}
+          <li{{ ' class="is-active"'|safe if e.name == active_name }}>{{ m.nav_link(e) }}</li>
+          {%- endfor %}
+        </ul>
+      </details>
+      {%- endif %}
+
+      {%- set type_objects = gen.all_type_objects()|sort(attribute=sort_by|default('name'))|list %}
+      {%- if type_objects %}
+      <details class="navgroup" open>
+        <summary>Types <span class="navgroup__count">{{ type_objects|length }}</span></summary>
+        <ul>
+          {%- for t in type_objects %}
+          <li{{ ' class="is-active"'|safe if t.name == active_name }}>{{ m.nav_link(t) }}</li>
+          {%- endfor %}
+        </ul>
+      </details>
+      {%- endif %}
+
+      {%- set subset_objects = schemaview.all_subsets().values()|sort(attribute='name')|list %}
+      {%- if subset_objects %}
+      <details class="navgroup" open>
+        <summary>Subsets <span class="navgroup__count">{{ subset_objects|length }}</span></summary>
+        <ul>
+          {%- for ss in subset_objects %}
+          <li{{ ' class="is-active"'|safe if ss.name == active_name }}>{{ m.nav_link(ss) }}</li>
+          {%- endfor %}
+        </ul>
+      </details>
+      {%- endif %}
+      <p class="sidebar__empty" data-nav-empty hidden>No elements match that filter.</p>
+    </div>
+  </nav>
+
+  <main class="content" id="content">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="{{ root }}index.html">{{ gen.schema_title()|e }}</a>
+      {%- block breadcrumb %}{% endblock %}
+    </nav>
+    {% block content %}{% endblock %}
+  </main>
+
+  <aside class="toc" aria-label="On this page">
+    <h2 class="toc__heading">On this page</h2>
+    <ul data-toc></ul>
+  </aside>
+</div>
+
+<footer class="footer">
+  <p>
+    Generated from <code>{{ schemaview.schema.name|e }}</code>
+    {%- if schemaview.schema.license %} &middot; <a href="{{ schemaview.schema.license|e }}" target="_blank" rel="noopener">license</a>{% endif %}
+    &middot; built with <a href="https://linkml.io/linkml/generators/docgen.html" target="_blank" rel="noopener">LinkML docgen</a>
+  </p>
+</footer>
+
+<script src="{{ root }}assets/js/docs.js" defer></script>
+</body>
+</html>

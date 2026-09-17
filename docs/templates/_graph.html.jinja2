@@ -1,0 +1,212 @@
+{%- import "_macros.html.jinja2" as m with context -%}
+{#-
+  Graph model and figure markup for the interactive diagrams.
+
+  The builder macros below mutate the `nodes`, `edges` and `ids` lists they are
+  handed, which is how a Jinja macro can act as a subroutine. Call them as
+
+      {% set _ = g.add_class_node(nodes, ids, cls, focus, index_link) %}
+
+  so their (empty) return value is discarded.
+
+  Node:
+      {"id", "label", "kind": "class"|"enum"|"type", "url", "focus",
+       "abstract", "mixin", "isA",
+       "slots": [{"name", "range", "rangeIsEntity", "card", "required",
+                  "multivalued", "identifier", "inherited", "inheritedFrom",
+                  "usageOverride", "selfRef", "origin"}],
+       "values": [...],    # enums only
+       "base": "str"}      # types only
+
+  Edge:
+      {"id", "kind": "is_a"|"mixin"|"union_of"|"range", "source", "target",
+       "slot", "card", "required", "multivalued", "identifier", "usageOverride"}
+
+  Edge direction follows the UML convention the LinkML modeller uses: for
+  `is_a` and `mixin` the SOURCE is the parent, so the hollow triangle marker
+  sits at the parent end. Range edges run from the owning class to the range.
+
+  Slots whose range is the class itself never become edges — they are marked
+  `selfRef` and the node renders a badge on that row instead, which keeps the
+  diagram free of self-loops.
+-#}
+
+{#- Resolve an element name to its display label, or pass the raw name through
+    for ranges that are not schema elements. -#}
+{%- macro _label(name) -%}
+  {%- if name and schemaview.get_element(name) -%}
+    {{- gen.name(schemaview.get_element(name)) -}}
+  {%- else -%}
+    {{- name or '' -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro _slot_row(rows, cls, slot, inherited) -%}
+  {%- set from = gen.get_slot_inherited_from(cls.name, slot.name) if inherited else [] -%}
+  {%- set _ = rows.append({
+        'name': gen.name(slot),
+        'range': _label(slot.range)|string,
+        'rangeIsEntity': true if slot.range and slot.range not in gen.all_type_object_names()
+                                 and schemaview.get_element(slot.range) else false,
+        'card': gen.cardinality(slot),
+        'required': true if slot.required else false,
+        'multivalued': true if slot.multivalued else false,
+        'identifier': true if (slot.identifier or slot.key) else false,
+        'inherited': true if inherited else false,
+        'inheritedFrom': (_label(from[0])|string) if from else none,
+        'usageOverride': true if (cls.slot_usage and slot.name in cls.slot_usage) else false,
+        'selfRef': true if slot.range == cls.name else false,
+        'origin': 'attribute' if (cls.attributes and slot.name in cls.attributes) else 'schema'}) -%}
+{%- endmacro -%}
+
+{%- macro add_class_node(nodes, ids, cls, focus=false, index_link=false) -%}
+  {%- if gen.name(cls) not in ids -%}
+    {%- set _ = ids.append(gen.name(cls)) -%}
+    {%- set rows = [] -%}
+    {%- set own = [] -%}
+    {%- for s in gen.get_direct_slots(cls) -%}
+      {%- set _ = own.append(s.name) -%}
+      {{- _slot_row(rows, cls, s, false) -}}
+    {%- endfor -%}
+    {%- for s in gen.get_indirect_slots(cls) -%}
+      {%- if s.name not in own -%}{{- _slot_row(rows, cls, s, true) -}}{%- endif -%}
+    {%- endfor -%}
+    {%- set _ = nodes.append({
+          'id': gen.name(cls),
+          'label': gen.name(cls),
+          'kind': 'class',
+          'url': m.href(cls, index_link)|string,
+          'focus': true if focus else false,
+          'abstract': true if cls.abstract else false,
+          'mixin': true if cls.mixin else false,
+          'isA': (_label(cls.is_a)|string) if cls.is_a else none,
+          'slots': rows}) -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Enum and type nodes: the range targets a class page links out to. -#}
+{%- macro add_entity_node(nodes, ids, el, index_link=false) -%}
+  {%- if el and gen.name(el) not in ids -%}
+    {%- set _ = ids.append(gen.name(el)) -%}
+    {%- set values = [] -%}
+    {%- if schemaview.get_enum(el.name) and el.permissible_values -%}
+      {%- for pv in el.permissible_values.values() -%}
+        {%- set _ = values.append(pv.text) -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- set _ = nodes.append({
+          'id': gen.name(el),
+          'label': gen.name(el),
+          'kind': 'enum' if schemaview.get_enum(el.name) else 'type',
+          'url': m.href(el, index_link)|string,
+          'focus': false,
+          'abstract': false,
+          'mixin': false,
+          'isA': none,
+          'slots': [],
+          'values': values,
+          'base': el.base if el.base is defined and el.base else none}) -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- Inheritance, mixin and union edges for one class. Only emitted when both
+    endpoints are already in `ids`, so a neighbourhood view stays closed. -#}
+{%- macro add_structural_edges(edges, ids, cls) -%}
+  {%- if cls.is_a and schemaview.get_class(cls.is_a) and _label(cls.is_a)|string in ids -%}
+    {%- set _ = edges.append({
+          'id': 'isa__' ~ gen.name(cls), 'kind': 'is_a',
+          'source': _label(cls.is_a)|string, 'target': gen.name(cls)}) -%}
+  {%- endif -%}
+  {%- for mx in cls.mixins -%}
+    {%- if schemaview.get_class(mx) and _label(mx)|string in ids -%}
+      {%- set _ = edges.append({
+            'id': 'mixin__' ~ gen.name(cls) ~ '__' ~ mx, 'kind': 'mixin',
+            'source': _label(mx)|string, 'target': gen.name(cls)}) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- for u in cls.union_of -%}
+    {%- if schemaview.get_class(u) and _label(u)|string in ids -%}
+      {%- set _ = edges.append({
+            'id': 'union__' ~ gen.name(cls) ~ '__' ~ u, 'kind': 'union_of',
+            'source': gen.name(cls), 'target': _label(u)|string}) -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{#- Range edges for one class's own slots. Inherited slots are skipped unless
+    slot_usage overrides the range: the plain inherited range is already
+    reachable through the is_a edge to the ancestor that declares it. -#}
+{%- macro add_range_edges(edges, ids, cls) -%}
+  {%- set own = [] -%}
+  {%- for s in gen.get_direct_slots(cls) -%}
+    {%- set _ = own.append(s.name) -%}
+    {{- _range_edge(edges, ids, cls, s, false) -}}
+  {%- endfor -%}
+  {%- for s in gen.get_indirect_slots(cls) -%}
+    {%- if s.name not in own and cls.slot_usage and s.name in cls.slot_usage
+           and cls.slot_usage[s.name].range -%}
+      {{- _range_edge(edges, ids, cls, s, true) -}}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{%- macro _range_edge(edges, ids, cls, slot, usage_override) -%}
+  {%- set target = _label(slot.range)|string -%}
+  {%- if slot.range and slot.range != cls.name and target in ids
+         and slot.range not in gen.all_type_object_names() -%}
+    {%- set _ = edges.append({
+          'id': 'range__' ~ gen.name(cls) ~ '__' ~ gen.name(slot) ~ '__' ~ target,
+          'kind': 'range',
+          'source': gen.name(cls),
+          'target': target,
+          'slot': gen.name(slot),
+          'card': gen.cardinality(slot),
+          'required': true if slot.required else false,
+          'multivalued': true if slot.multivalued else false,
+          'identifier': true if (slot.identifier or slot.key) else false,
+          'usageOverride': true if usage_override else false}) -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- The figure. React mounts the toolbar and canvas into [data-diagram-mount];
+    the text rendering below it is always present so the relationships survive
+    without JavaScript, in print, and for screen readers. -#}
+{%- macro diagram(graph, caption, prefix='') -%}
+<figure class="diagram" data-diagram>
+  <div class="diagram__mount" data-diagram-mount>
+    <p class="diagram__placeholder">Loading diagram&hellip; the same relationships are listed under <em>Diagram as text</em> below.</p>
+  </div>
+  <script type="application/json" data-diagram-data>{{ graph|tojson }}</script>
+  <figcaption>{{ caption|e }} Drag nodes to rearrange; click a class to open its page.</figcaption>
+  <details class="diagram__text">
+    <summary>Diagram as text</summary>
+    <ul class="notelist">
+      {%- for n in graph.nodes %}
+      <li>
+        {%- if n.url %}<a href="{{ (prefix ~ n.url)|e }}">{{ n.label|e }}</a>{% else %}{{ n.label|e }}{% endif -%}
+        {%- if n.abstract %} <span class="muted">(abstract)</span>{% endif -%}
+        {%- if n.mixin %} <span class="muted">(mixin)</span>{% endif -%}
+        {%- set outgoing = graph.edges|selectattr('source', 'equalto', n.id)|list %}
+        {%- if outgoing %}
+        <ul>
+          {%- for e in outgoing %}
+          <li>
+            {%- if e.kind == 'is_a' -%}
+              is the parent of {{ e.target|e }}
+            {%- elif e.kind == 'mixin' -%}
+              is mixed into {{ e.target|e }}
+            {%- elif e.kind == 'union_of' -%}
+              unions {{ e.target|e }}
+            {%- else -%}
+              <code>{{ e.slot|e }}</code>{% if e.card %} <span class="card">{{ e.card|e }}</span>{% endif %} &rarr; {{ e.target|e }}
+            {%- endif -%}
+          </li>
+          {%- endfor %}
+        </ul>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+  </details>
+</figure>
+{%- endmacro -%}
