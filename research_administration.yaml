@@ -10,18 +10,11 @@ default_prefix: ra
 default_range: string
 imports:
   - linkml:types
+  - ra_types
   - nacubo_functional_classification
 settings:
   ror_prefix: https://ror\\.org/
   ror_suffix: 0[0-9a-hjkmnp-tv-z]{6}[0-9]{2}
-types:
-  RorId:
-    uri: xsd:anyURI
-    description: A Research Organization Registry identifier, expressed as a full HTTPS URI.
-    base: str
-    structured_pattern:
-      syntax: '{ror_prefix}{ror_suffix}'
-      interpolated: true
 slots:
   funded_item:
     range: Project
@@ -92,8 +85,8 @@ classes:
       parent_organization:
         range: Organization
         slot_uri: schema:parentOrganization
-      ror:
-        range: RorId
+      ror_uri:
+        range: RorCurie
   Thing:
     abstract: true
     class_uri: schema:Thing
