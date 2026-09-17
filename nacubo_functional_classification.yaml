@@ -1,0 +1,107 @@
+id: https://nebraska.edu/research_administration/vocab/nacubo_functional_classification
+name: nacubo_functional_classification
+title: NACUBO Functional Expense Classification
+description: >-
+  Value set for the NACUBO functional expense classifications used by public institutions
+  (FARM 342.1). Terms are minted in the local namespace because no stable external IRIs
+  are published for this classification.
+license: https://creativecommons.org/licenses/by/4.0/
+prefixes:
+  linkml: https://w3id.org/linkml/
+  ra: https://nebraska.edu/research_administration/
+  skos: http://www.w3.org/2004/02/skos/core#
+default_prefix: ra
+default_range: string
+imports:
+  - linkml:types
+
+enums:
+  FunctionalExpenseCategory:
+    enum_uri: ra:vocab/FunctionalExpenseCategory
+    title: Functional Expense Category
+    description: >-
+      Functional classification of an activity's expenses, per the NACUBO Financial
+      Accounting and Reporting Manual.
+    permissible_values:
+
+      instruction:
+        title: Instruction
+        meaning: ra:function/Instruction
+        description: >-
+          Expenses for all activities that are part of the institution's instruction
+          program, including credit and noncredit courses and remedial and tutorial
+          instruction.
+
+      research:
+        title: Research
+        meaning: ra:function/Research
+        description: >-
+          Expenses for activities specifically organized to produce research, whether
+          commissioned by an external agency or separately budgeted by an internal unit.
+
+      public_service:
+        title: Public Service
+        meaning: ra:function/PublicService
+        description: >-
+          Expenses for activities established primarily to provide non-instructional
+          services beneficial to individuals and groups external to the institution.
+
+      academic_support:
+        title: Academic Support
+        meaning: ra:function/AcademicSupport
+        description: >-
+          Expenses for support services to the institution's primary programs of
+          instruction, research, and public service, including libraries, museums,
+          academic administration, and academic personnel development.
+
+      student_services:
+        title: Student Services
+        meaning: ra:function/StudentServices
+        description: >-
+          Expenses for admissions, the registrar, and activities contributing to
+          students' well-being and development outside formal instruction.
+
+      institutional_support:
+        title: Institutional Support
+        meaning: ra:function/InstitutionalSupport
+        description: >-
+          Expenses for central executive-level activities, fiscal operations, general
+          administrative services, and community and alumni relations.
+
+      operation_and_maintenance_of_plant:
+        title: Operation and Maintenance of Plant
+        meaning: ra:function/OperationAndMaintenanceOfPlant
+        description: >-
+          Expenses for the administration, operation, maintenance, preservation, and
+          protection of the institution's physical plant.
+
+      scholarships_and_fellowships:
+        title: Scholarships and Fellowships
+        meaning: ra:function/ScholarshipsAndFellowships
+        description: >-
+          Expenses for scholarships and fellowships in the form of outright grants to
+          students selected by the institution.
+
+      depreciation:
+        title: Depreciation
+        meaning: ra:function/Depreciation
+        description: Depreciation expense reported as a separate functional classification.
+
+      auxiliary_enterprises:
+        title: Auxiliary Enterprises
+        meaning: ra:function/AuxiliaryEnterprises
+        description: >-
+          Expenses of self-supporting enterprises furnishing goods or services to
+          students, faculty, or staff for a fee.
+
+      hospitals:
+        title: Hospitals
+        meaning: ra:function/Hospitals
+        description: Expenses of hospital operations, excluding medical school instruction and research.
+
+      independent_operations:
+        title: Independent Operations
+        meaning: ra:function/IndependentOperations
+        description: >-
+          Expenses of operations independent of, or unrelated to, the institution's
+          primary missions.
