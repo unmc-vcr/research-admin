@@ -1,0 +1,53 @@
+id: https://nebraska.edu/research_administration/vocab/nacubo_functional_classification
+name: award_mechanism
+title: Award Mechanism
+license: https://creativecommons.org/licenses/by/4.0/
+prefixes:
+  linkml: https://w3id.org/linkml/
+  raam: https://nebraska.edu/research_administration/mechanism#
+  rapr: https://nebraska.edu/research_administration/personnel_role#
+  ra: https://nebraska.edu/research_administration/
+  skos: http://www.w3.org/2004/02/skos/core#
+default_prefix: raam
+default_range: string
+imports:
+  - linkml:types
+enums:
+  AwardMechanism:
+    description: The legal instrument or manner by which a sponsor or funder has or would issue support to the organization.
+    permissible_values:
+      contract:
+        description: words
+        meaning: raam:Contract
+      grant:
+        description: words
+        meaning: raam:Grant
+      cooperative_agreement:
+        description: words
+        meaning: raam:CooperativeAgreement
+      gift:
+        description: words
+        meaning: raam:Gift
+    enum_uri: raam:AwardMechanism
+    title: Award Mechanism
+  PersonnelRole:
+    description: desc
+    permissible_values:
+      principal_investigator:
+        description: words
+        meaning: rapr:PrincipalInvestigator
+      co_investigator:
+        description: words
+        meaning: rapr:CoInvestigator
+      other_key_personnel:
+        description: words
+        meaning: rapr:OtherKeyPersonnel
+      other_significant_contributor:
+        description: words
+        meaning: rapr:OtherSignificantContributor
+emit_prefixes:
+  - raam
+  - rarp
+  - ra
+  - linkml
+  - skos
