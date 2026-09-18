@@ -11,6 +11,7 @@ default_range: string
 imports:
   - linkml:types
   - ra_types
+  - ra_vocab
   - nacubo_functional_classification
 settings:
   ror_prefix: https://ror\\.org/
@@ -30,7 +31,6 @@ slots:
     identifier: true
   name:
     range: string
-    required: true
     slot_uri: schema:name
   funding_periods: {}
   award_type:
@@ -44,12 +44,10 @@ slots:
     range: date
   end_date:
     range: date
-enums:
-  AwardType:
-    permissible_values:
-      grant: null
-      contract: null
-      cooperative_agreement: null
+  awards:
+    range: Award
+  proposals:
+    range: Proposal
 classes:
   CreativeWork:
     is_a: Thing
@@ -60,6 +58,8 @@ classes:
       - funded_item
       - funder
       - award_type
+      - start_date
+      - end_date
   MonetaryGrant:
     is_a: Grant
     class_uri: schema:MonetaryGrant
@@ -69,6 +69,8 @@ classes:
       - funding
       - start_date
       - end_date
+      - awards
+      - proposals
     attributes:
       lead_person:
         range: Person
@@ -94,8 +96,37 @@ classes:
       - id
       - name
   Grant:
-    is_a: Thing
+    is_a: Intangible
     class_uri: schema:Grant
-  FundingPeriod: {}
+  Proposal:
+    is_a: Intangible
+  Intangible:
+    is_a: Thing
+    class_uri: schema:Intangible
   Person:
     is_a: Thing
+  StructuredValue:
+    is_a: Intangible
+    class_uri: schema:StructuredValue
+  MonetaryAmount:
+    is_a: StructuredValue
+    class_uri: schema:MonetaryAmount
+    attributes:
+      currency:
+        range: string
+        required: true
+      value:
+        range: float
+        required: true
+      valid_from:
+        range: datetime
+      valid_through:
+        range: datetime
+  ProjectRole:
+    is_a: Intangible
+    slots:
+      - end_date
+      - start_date
+    attributes:
+      holder:
+        range: Person
