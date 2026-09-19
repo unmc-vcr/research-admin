@@ -214,6 +214,9 @@ function toFlow(graph, expanded, positions, bends) {
         type: e.kind,
         source: e.source,
         target: e.target,
+        // React Flow puts an edge's className on its <g>; BaseEdge ignores a
+        // className prop, so edge styling has to be hung here.
+        className: "rf-edge rf-edge--" + e.kind,
         data: Object.assign({ bends: bends[e.id] }, shared)
       };
     }
@@ -234,6 +237,8 @@ function toFlow(graph, expanded, positions, bends) {
       target: e.target,
       sourceHandle: slot ? "slot-" + side + "-" + e.slot : "side-" + side,
       targetHandle: side === "east" ? "side-west" : "side-east",
+      className:
+        "rf-edge rf-edge--range" + (e.usageOverride ? " rf-edge--override" : ""),
       data: Object.assign({}, e, shared)
     };
   });
@@ -591,13 +596,9 @@ const RangeEdge = memo(function RangeEdge(props) {
     h(BaseEdge, {
       path: geom.path,
       markerEnd: "url(#lm-arrow-filled)",
-      className: cx(
-        "rf-edge",
-        "rf-edge--range",
-        data.usageOverride && "rf-edge--override",
-        hovered && "is-hovered",
-        data.dimmed && "is-dimmed"
-      )
+      // Stroke colour and dashes come from the edge's class in CSS; only the
+      // hover emphasis is per-render state.
+      style: { strokeWidth: hovered ? 2.5 : 1.5 }
     }),
     h(
       EdgeLabelRenderer,
@@ -628,14 +629,12 @@ const RangeEdge = memo(function RangeEdge(props) {
   );
 });
 
-function structuralEdge(className, marker) {
+function structuralEdge(marker) {
   return memo(function StructuralEdge(props) {
     const geom = edgePath(props);
-    const data = props.data || {};
     return h(BaseEdge, {
       path: geom.path,
-      markerStart: marker ? "url(#" + marker + ")" : undefined,
-      className: cx("rf-edge", className, data.dimmed && "is-dimmed")
+      markerStart: marker ? "url(#" + marker + ")" : undefined
     });
   });
 }
@@ -644,9 +643,9 @@ function structuralEdge(className, marker) {
 // parent end — the UML reading of "child points at parent".
 const edgeTypes = {
   range: RangeEdge,
-  is_a: structuralEdge("rf-edge--isa", "lm-arrow-hollow"),
-  mixin: structuralEdge("rf-edge--mixin", "lm-arrow-hollow"),
-  union_of: structuralEdge("rf-edge--union", null)
+  is_a: structuralEdge("lm-arrow-hollow"),
+  mixin: structuralEdge("lm-arrow-hollow"),
+  union_of: structuralEdge(null)
 };
 
 function EdgeMarkers() {
@@ -693,7 +692,7 @@ function Toolbar(props) {
     h(
       "div",
       { className: "diagram__legend" },
-      h("span", { className: "key key--isa" }, "inherits"),
+      h("span", { className: "key key--is_a" }, "inherits"),
       h("span", { className: "key key--mixin" }, "mixin"),
       h("span", { className: "key key--range" }, "slot")
     ),
@@ -864,6 +863,7 @@ function Canvas(props) {
       return edges.map(function (e) {
         const touches = e.source === hovered || e.target === hovered;
         return Object.assign({}, e, {
+          className: touches ? e.className : e.className + " is-dimmed",
           data: Object.assign({}, e.data, { dimmed: !touches })
         });
       });

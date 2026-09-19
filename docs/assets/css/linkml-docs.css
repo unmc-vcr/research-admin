@@ -1286,39 +1286,39 @@ code.uri {
 
 /* ----------------------------------------------------------- rf edges -- */
 
-.rf-edge {
-  transition: opacity 0.15s, stroke-width 0.15s;
+.react-flow__edge.rf-edge {
+  transition: opacity 0.15s;
 }
 
-.rf-edge.is-dimmed {
+.react-flow__edge.rf-edge.is-dimmed {
   opacity: 0.12;
 }
 
-.react-flow__edge .rf-edge--range {
+.react-flow__edge.rf-edge--range .react-flow__edge-path {
   stroke: var(--accent-ok);
   stroke-width: 1.5;
 }
 
-.react-flow__edge .rf-edge--range.is-hovered {
+.react-flow__edge.rf-edge--range.is-hovered .react-flow__edge-path {
   stroke-width: 2.5;
 }
 
-.react-flow__edge .rf-edge--override {
+.react-flow__edge.rf-edge--override .react-flow__edge-path {
   stroke-dasharray: 5 3;
 }
 
-.react-flow__edge .rf-edge--isa {
+.react-flow__edge.rf-edge--is_a .react-flow__edge-path {
   stroke: var(--link);
   stroke-width: 2;
 }
 
-.react-flow__edge .rf-edge--mixin {
+.react-flow__edge.rf-edge--mixin .react-flow__edge-path {
   stroke: var(--accent-info);
   stroke-width: 1.5;
   stroke-dasharray: 6 3;
 }
 
-.react-flow__edge .rf-edge--union {
+.react-flow__edge.rf-edge--union_of .react-flow__edge-path {
   stroke: var(--fg-faint);
   stroke-width: 1.5;
   stroke-dasharray: 2 4;

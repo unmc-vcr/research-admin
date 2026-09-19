@@ -37,7 +37,9 @@ jobs:
       - name: Lint schemas
         run: |
           rc=0
-          for schema in *.yaml; do
+          # src/*/*.yaml covers schemas/, types/ and enums/ while skipping the
+          # editor's src/.linkml-editor.yaml, which is config rather than a schema.
+          for schema in src/*/*.yaml; do
             echo "::group::$schema"
             linkml-lint --ignore-warnings "$schema" || rc=1
             echo "::endgroup::"

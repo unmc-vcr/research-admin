@@ -2,10 +2,22 @@
 
 LinkML schemas for research administration at the University of Nebraska.
 
-| Schema | Contents |
-| --- | --- |
-| [`research_administration.yaml`](research_administration.yaml) | Core model: projects, awards, organisations, people |
-| [`nacubo_functional_classification.yaml`](nacubo_functional_classification.yaml) | NACUBO functional expense classification value set (FARM 342.1) |
+```
+src/
+  schemas/    documented entry points
+    research_administration.yaml    core model: projects, awards, organisations, people
+  types/      modules imported by a schema
+    ra_types.yaml                   patterned identifiers and constrained numerics
+    nacubo_functional_classification.yaml   NACUBO functional expenses (FARM 342.1)
+  enums/
+    ra_vocab.yaml                   award mechanism, personnel role
+```
+
+Everything under `src/schemas/` is built as its own documentation site.
+`src/types/` and `src/enums/` hold modules that schemas import; they are
+rendered as part of whichever schema pulls them in, not as sites of their own.
+Import paths are relative to the importing file, so a schema in `src/schemas/`
+reaches a module as `../types/ra_types`.
 
 ## Documentation site
 
@@ -14,18 +26,12 @@ rendered templates, so the build script also copies the stylesheet and scripts
 next to the generated pages.
 
 ```bash
-uv run --with linkml python scripts/build_docs.py
+pip install -r requirements.txt
+python scripts/build_docs.py
 ```
 
-For a build that matches CI exactly, install the pinned version instead:
-
-```bash
-pip install -r requirements-docs.txt && python scripts/build_docs.py
-```
-
-That writes `site/research_administration/` and
-`site/nacubo_functional_classification/`, each self-contained, plus a
-`site/index.html` landing page linking to both. To preview:
+That writes one self-contained directory per schema under `site/`, plus a
+`site/index.html` landing page linking to them. To preview:
 
 ```bash
 python3 -m http.server -d site 8000
@@ -34,7 +40,7 @@ python3 -m http.server -d site 8000
 Build one schema somewhere specific, or turn the diagrams off:
 
 ```bash
-uv run --with linkml python scripts/build_docs.py research_administration.yaml -d site/ra --no-diagrams
+python scripts/build_docs.py src/schemas/research_administration.yaml -d site/ra --no-diagrams
 ```
 
 ### Continuous integration
@@ -43,10 +49,12 @@ uv run --with linkml python scripts/build_docs.py research_administration.yaml -
 builds the site, checks the output and uploads it as a build artifact, on every
 push to `main` and every pull request.
 
-`linkml-lint` runs with `--ignore-warnings`: the warnings on these schemas are
-style notes (classes and slots without a `description`), so failing on them
-would leave CI permanently red and quickly ignored. Genuine schema errors — a
-dangling slot reference, say — still exit non-zero and fail the job.
+Every file under `src/*/` is linted, modules included, because a broken module
+breaks the schema that imports it. `linkml-lint` runs with `--ignore-warnings`:
+the warnings on these schemas are style notes (classes and slots without a
+`description`), so failing on them would leave CI permanently red and quickly
+ignored. Genuine schema errors — an undefined slot range, say — still exit
+non-zero and fail the job.
 
 The build itself rarely fails, because the things that go wrong in hand-written
 templates are bad relative paths and diagram edges pointing at nodes the page
@@ -90,7 +98,7 @@ cancelled by a newer push, so a deploy is not aborted halfway through.
 
 ```
 .github/workflows/docs.yml   lint, build, check, upload, deploy to Pages
-requirements-docs.txt        pinned LinkML version
+requirements.txt             pinned LinkML version
 scripts/
   build_docs.py       renders each schema through gen-doc, copies assets,
                       writes the landing page

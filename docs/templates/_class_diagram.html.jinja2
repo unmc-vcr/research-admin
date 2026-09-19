@@ -21,6 +21,22 @@
   {#- The focus class, its is-a chain root-first, then its direct children. -#}
   {%- set family = schemaview.class_ancestors(element.name, mixins=False, reflexive=True)|reverse|list
                    + schemaview.class_children(element.name, mixins=False)|sort %}
+
+  {#- Mixins the family declares, so a mixin edge has both endpoints on the
+      page. Without this a class states `mixins:` but the diagram omits it. -#}
+  {%- set mixin_names = [] %}
+  {%- for name in family %}
+    {%- set cls = schemaview.get_class(name) %}
+    {%- if cls %}
+      {%- for mx in cls.mixins %}
+        {%- if schemaview.get_class(mx) and mx not in family and mx not in mixin_names %}
+          {%- set _ = mixin_names.append(mx) %}
+        {%- endif %}
+      {%- endfor %}
+    {%- endif %}
+  {%- endfor %}
+  {%- set family = family + mixin_names %}
+
   {%- for name in family %}
     {%- set cls = schemaview.get_class(name) %}
     {%- if cls %}

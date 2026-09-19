@@ -10,9 +10,9 @@ default_prefix: ra
 default_range: string
 imports:
   - linkml:types
-  - ./types/ra_types
-  - ./enums/ra_vocab
-  - ./types/nacubo_functional_classification
+  - ../types/ra_types
+  - ../enums/ra_vocab
+  - ../types/nacubo_functional_classification
 slots:
   proposed_sponsor:
     slot_uri: schema:funder
@@ -74,13 +74,13 @@ slots:
     required: true
     description: The sponsor-facing role the person holds on the award or proposal.
  
-  credit_roles:
-    slot_uri: ra:creditRole
-    range: CreditRole
-    multivalued: true
-    description: >-
-      CRediT contributor roles for this person's intended or actual contribution.
-      Optional; CRediT describes contributions to scholarly output, not sponsor roles.
+  # credit_roles:
+  #   slot_uri: ra:creditRole
+  #   range: CreditRole
+  #   multivalued: true
+  #   description: >-
+  #     CRediT contributor roles for this person's intended or actual contribution.
+  #     Optional; CRediT describes contributions to scholarly output, not sponsor roles.
  
   effort:
     slot_uri: ra:effort

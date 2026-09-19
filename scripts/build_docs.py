@@ -8,8 +8,8 @@ is why each output directory gets its own copy.
 
 Usage:
 
-    python scripts/build_docs.py                      # every schema below
-    python scripts/build_docs.py research_administration.yaml -d site/ra
+    python scripts/build_docs.py                      # every schema in src/schemas
+    python scripts/build_docs.py src/schemas/research_administration.yaml -d site/ra
 """
 
 from __future__ import annotations
@@ -24,13 +24,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE_DIR = REPO_ROOT / "docs" / "templates"
 ASSET_DIR = REPO_ROOT / "docs" / "assets"
 SITE_DIR = REPO_ROOT / "site"
+SRC_DIR = REPO_ROOT / "src"
 
-# Schemas built by `python scripts/build_docs.py` with no arguments, each into
-# its own self-contained output directory.
-SCHEMAS = [
-    "research_administration.yaml",
-    "nacubo_functional_classification.yaml",
-]
+# `src/schemas/` holds the documented entry points; `src/types/` and
+# `src/enums/` hold modules those schemas import, which are rendered as part of
+# whichever schema pulls them in rather than as sites of their own.
+SCHEMA_DIR = SRC_DIR / "schemas"
+
+
+def discover_schemas() -> list[Path]:
+    return sorted(SCHEMA_DIR.glob("*.yaml"))
 
 
 def build(schema: Path, directory: Path, diagram_type: str | None) -> dict:
@@ -173,9 +176,13 @@ def main(argv: list[str]) -> int:
     try:
         import linkml  # noqa: F401
     except ImportError:
-        parser.error("linkml is not installed. Try: uv run --with linkml python scripts/build_docs.py")
+        parser.error(
+            "linkml is not installed. Try: pip install -r requirements.txt"
+        )
 
-    schemas = args.schema or [REPO_ROOT / name for name in SCHEMAS]
+    schemas = args.schema or discover_schemas()
+    if not schemas:
+        parser.error(f"no schemas found in {SCHEMA_DIR.relative_to(REPO_ROOT)}/")
     if args.directory and len(schemas) != 1:
         parser.error("--directory requires exactly one schema")
 
