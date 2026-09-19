@@ -1,0 +1,225 @@
+id: https://nebraska.edu/research_administration
+name: research_administration
+title: Research Administration
+prefixes:
+  linkml: https://w3id.org/linkml/
+  schema: http://schema.org/
+  ra: https://nebraska.edu/research_administration/
+  ror: https://ror.org/
+default_prefix: ra
+default_range: string
+imports:
+  - linkml:types
+  - ./types/ra_types
+  - ./enums/ra_vocab
+  - ./types/nacubo_functional_classification
+slots:
+  proposed_sponsor:
+    slot_uri: schema:funder
+    range: Organization
+    required: true
+    description: >-
+      The organization the proposal is directed to. Distinct from `funder`, which is
+      only known once support is issued.
+  project:
+    slot_uri: schema:fundedItem
+    range: Project
+    required: true
+  funder:
+    range: Organization
+    required: true
+    slot_uri: schema:funder
+  id:
+    range: uriorcurie
+    required: true
+    identifier: true
+  name:
+    range: string
+    slot_uri: schema:name
+  funding:
+    range: Award
+    multivalued: true
+    inlined_as_list: true
+  start_date:
+    range: date
+  end_date:
+    range: date
+  awards:
+    range: Award
+  proposals:
+    range: Proposal
+  funding_amount:
+    range: MonetaryAmount
+  mechanism:
+    range: AwardMechanism
+    required: true
+  personnel:
+    slot_uri: ra:personnel
+    range: PersonnelAssignment
+    multivalued: true
+    inlined_as_list: true
+    description: >-
+      Personnel recorded on this award or proposal. On an award these are the
+      sponsor-recognized personnel; on a proposal they are the personnel as proposed.
+ 
+  person:
+    slot_uri: ra:person
+    range: Person
+    required: true
+    description: Reference to the person holding this assignment.
+ 
+  personnel_role:
+    slot_uri: schema:roleName
+    range: PersonnelRole
+    required: true
+    description: The sponsor-facing role the person holds on the award or proposal.
+ 
+  credit_roles:
+    slot_uri: ra:creditRole
+    range: CreditRole
+    multivalued: true
+    description: >-
+      CRediT contributor roles for this person's intended or actual contribution.
+      Optional; CRediT describes contributions to scholarly output, not sponsor roles.
+ 
+  effort:
+    slot_uri: ra:effort
+    range: Effort
+    inlined: true
+    description: Committed effort for this assignment.
+  
+classes:
+  CreativeWork:
+    is_a: Thing
+    class_uri: schema:CreativeWork
+  Award:
+    is_a: MonetaryGrant
+    mixins: [Identified, SponsoredCommitment]
+    slots:
+      - project
+      - funder
+  MonetaryGrant:
+    is_a: Grant
+    class_uri: schema:MonetaryGrant
+  Project:
+    is_a: CreativeWork
+    mixins: [Identified]
+    slots:
+      - funding
+      - start_date
+      - end_date
+      - awards
+      - proposals
+    attributes:
+      lead_person:
+        range: Person
+        required: true
+      project_classification:
+        range: FunctionalExpenseCategory
+  Organization:
+    is_a: Thing
+    class_uri: schema:Organization
+    mixins: [Identified]
+    attributes:
+      sub_organization:
+        range: Organization
+        slot_uri: schema:subOrganization
+      parent_organization:
+        range: Organization
+        slot_uri: schema:parentOrganization
+      ror_uri:
+        range: RorCurie
+  Thing:
+    abstract: true
+    class_uri: schema:Thing
+  Grant:
+    is_a: Intangible
+    class_uri: schema:Grant
+  Proposal:
+    is_a: Intangible
+    mixins: [Identified, SponsoredCommitment]
+    slots:
+      - proposed_sponsor
+      - project
+  Intangible:
+    is_a: Thing
+    class_uri: schema:Intangible
+  Person:
+    is_a: Thing
+    mixins: [Identified]
+    class_uri: schema:Person
+  StructuredValue:
+    is_a: Intangible
+    class_uri: schema:StructuredValue
+  MonetaryAmount:
+    is_a: StructuredValue
+    class_uri: schema:MonetaryAmount
+    attributes:
+      currency:
+        range: string
+        required: true
+      value:
+        range: MonetaryAmountValue
+        required: true
+      valid_from:
+        range: datetime
+      valid_through:
+        range: datetime
+  PersonnelAssignment:
+    is_a: Intangible
+    mixins: [Identified]
+    class_uri: schema:Role
+    title: Personnel Assignment
+    description: >-
+      One person's role on one award or proposal, with the effort committed and the dates
+      the assignment is in force. Created, changed, or ended by award actions; on a
+      proposal it records what was proposed.
+    slots:
+      - id
+      - person
+      - personnel_role
+      - credit_roles
+      - effort
+      - start_date
+      - end_date
+    slot_usage:
+      id:
+        description: Local identifier so later actions can modify or end this assignment.
+  Effort:
+    is_a: StructuredValue
+    title: Effort
+    description: >-
+      Effort committed to an assignment, expressed as a percent of institutional base,
+      as person-months, or both. Do not derive one from the other on ingest; record what
+      the document states and convert on export.
+    slots:
+      - start_date
+      - end_date
+    attributes:
+      effort_percent:
+        range: EffortPercent
+        description: Percent of institutional base effort.
+      calendar_months:
+        range: decimal
+        minimum_value: 0
+        description: Person-months on a calendar-year appointment.
+      academic_months:
+        range: decimal
+        minimum_value: 0
+        description: Person-months on an academic-year appointment.
+      summer_months:
+        range: decimal
+        minimum_value: 0
+        description: Person-months of summer effort.
+      is_cost_shared:
+        range: boolean
+        description: True when the effort is committed but not charged to the sponsor.
+  SponsoredCommitment:
+    mixin: true
+    description: Shared shape for a request for support and for support actually issued.
+    slots: [funding_amount, start_date, end_date, personnel, mechanism]
+  Identified:
+    mixin: true
+    title: Identified
+    slots:
+      - id

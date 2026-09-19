@@ -1,2 +1,0 @@
-# Pinned so CI and local builds render identical output. Bump deliberately.
-linkml==1.11.1
