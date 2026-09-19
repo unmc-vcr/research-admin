@@ -36,14 +36,23 @@ jobs:
       # should not fail the build; genuine schema errors still exit non-zero.
       - name: Lint schemas
         run: |
+          # An unmatched shell glob expands to the pattern itself, which would
+          # hand linkml-lint a path that does not exist and fail with a
+          # confusing error. find + an explicit empty check means a future
+          # directory move reports what is actually wrong.
+          schemas=$(find src -name '*.yaml' ! -name '.linkml-editor.yaml' | sort)
+          if [ -z "$schemas" ]; then
+            echo "::error::no schemas found under src/ — has the layout moved?"
+            exit 1
+          fi
+          echo "Linting $(printf '%s\n' "$schemas" | wc -l | tr -d ' ') schema(s)"
           rc=0
-          # src/*/*.yaml covers schemas/, types/ and enums/ while skipping the
-          # editor's src/.linkml-editor.yaml, which is config rather than a schema.
-          for schema in src/*/*.yaml; do
+          # A here-string keeps the loop in this shell, so rc survives it.
+          while IFS= read -r schema; do
             echo "::group::$schema"
             linkml-lint --ignore-warnings "$schema" || rc=1
             echo "::endgroup::"
-          done
+          done <<< "$schemas"
           exit $rc
 
       - name: Build site

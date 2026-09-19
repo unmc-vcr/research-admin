@@ -178,7 +178,7 @@ classes:
       - id
       - person
       - personnel_role
-      - credit_roles
+      # - credit_roles  # parked with the slot definition above
       - effort
       - start_date
       - end_date
